@@ -1,0 +1,10 @@
+limits:
+  max_evidence_retries: 2
+  max_root_problem_retries: 1
+  max_structure_retries: 1
+  max_wedge_retries: 2
+  max_validation_retries: 1
+  max_total_nodes: 30
+  max_total_model_calls: 12
+  max_estimated_cost_usd: 3.0
+  max_elapsed_minutes: 15

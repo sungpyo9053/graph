@@ -1,0 +1,11 @@
+problem_gate:
+  minimum_independent_sources: 2
+  minimum_problem_evidence_points: 30
+  required_fields: [persona, situation, repeated_behavior, pain, current_workaround, root_problem]
+thesis_gate:
+  minimum_total_score: 65
+  required_fields: [structural_gap, selected_wedge, switching_reason, strongest_objection, kill_conditions]
+  blocked_risk_levels: [BLOCKED]
+validation_gate:
+  maximum_duration_days: 14
+  required_fields: [hypothesis, target_user, method, duration_days, success_criterion, failure_criterion, estimated_cost_usd, next_action_if_pass, next_action_if_fail]

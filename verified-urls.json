@@ -1,0 +1,149 @@
+{
+  "label": "한국어 공개 원문에서 반복 행동과 우회 행동 발견",
+  "market": "KR",
+  "language": "ko",
+  "verified_by": "Codex web research",
+  "verified_at": "2026-08-11T00:00:00+09:00",
+  "urls": [
+    {
+      "url": "https://sunnytodaydiary.tistory.com/408",
+      "title": "카톡 나와의 대화(채팅) 여러개 만들기",
+      "source_type": "community",
+      "discovered_via_query": "카톡 나와의 채팅 하루에도 몇 번 메모하고 다시 찾는 행동",
+      "published_at": null
+    },
+    {
+      "url": "https://workload33.tistory.com/18",
+      "title": "나만의 링크 저장 서비스 가설 조사",
+      "source_type": "community",
+      "discovered_via_query": "카톡 나와의 채팅 하루에도 몇 번 메모하고 다시 찾는 행동",
+      "published_at": null
+    },
+    {
+      "url": "https://my-bird.tistory.com/160",
+      "title": "일정 관리 메모 앱 비교",
+      "source_type": "market",
+      "discovered_via_query": "카톡 나와의 채팅 하루에도 몇 번 메모하고 다시 찾는 행동",
+      "published_at": null
+    },
+    {
+      "url": "https://moneyhabitslab.tistory.com/15",
+      "title": "가계부 기록 우회 방법",
+      "source_type": "review",
+      "discovered_via_query": "카톡 나와의 채팅 하루에도 몇 번 메모하고 다시 찾는 행동",
+      "published_at": null
+    },
+    {
+      "url": "https://celdee.tistory.com/76",
+      "title": "자동차 보증서 정비 영수증을 찾은 경험",
+      "source_type": "community",
+      "discovered_via_query": "영수증 보증서를 보관하고 필요할 때 다시 찾는 반복 행동",
+      "published_at": null
+    },
+    {
+      "url": "https://wave2trip.com/receipt-and-warranty-organization-method/",
+      "title": "영수증과 보증서 정리 방법",
+      "source_type": "community",
+      "discovered_via_query": "영수증 보증서를 보관하고 필요할 때 다시 찾는 반복 행동",
+      "published_at": null
+    },
+    {
+      "url": "https://minihans.com/paper-document-organizing/",
+      "title": "서류 정리하는 방법",
+      "source_type": "review",
+      "discovered_via_query": "영수증 보증서를 보관하고 필요할 때 다시 찾는 반복 행동",
+      "published_at": null
+    },
+    {
+      "url": "https://blog.jackerlab.com/docker-homebox-home-inventory-asset-management/",
+      "title": "Homebox 가정용 자산 관리 도구",
+      "source_type": "product",
+      "discovered_via_query": "영수증 보증서를 보관하고 필요할 때 다시 찾는 반복 행동",
+      "published_at": null
+    },
+    {
+      "url": "https://www.lawtalk.co.kr/qna/638202",
+      "title": "월세 세입자 에어컨 수리비 상담 사례",
+      "source_type": "community",
+      "discovered_via_query": "세입자가 수리 요청 사진 견적 영수증 카톡 기록을 모으는 행동",
+      "published_at": null
+    },
+    {
+      "url": "https://www.lawtalk.co.kr/qna/303800",
+      "title": "임대인 연락과 수리비 분쟁 상담 사례",
+      "source_type": "community",
+      "discovered_via_query": "세입자가 수리 요청 사진 견적 영수증 카톡 기록을 모으는 행동",
+      "published_at": null
+    },
+    {
+      "url": "https://www.lawtalk.co.kr/qna/126302",
+      "title": "수리 견적과 보증금 분쟁 상담 사례",
+      "source_type": "community",
+      "discovered_via_query": "세입자가 수리 요청 사진 견적 영수증 카톡 기록을 모으는 행동",
+      "published_at": null
+    },
+    {
+      "url": "https://www.lawtalk.co.kr/posts/161404",
+      "title": "임차인 임대인 수리 거부 대응 절차",
+      "source_type": "official",
+      "discovered_via_query": "세입자가 수리 요청 사진 견적 영수증 카톡 기록을 모으는 행동",
+      "published_at": null
+    },
+    {
+      "url": "https://news.appstory.co.kr/apps6787",
+      "title": "자동차 수리 견적 앱 사용 경험",
+      "source_type": "community",
+      "discovered_via_query": "자동차 수리 전에 여러 정비소 견적을 직접 비교하는 행동",
+      "published_at": null
+    },
+    {
+      "url": "https://metaverse456.tistory.com/1672",
+      "title": "자동차 문콕 수리 여러 군데 비교 견적",
+      "source_type": "community",
+      "discovered_via_query": "자동차 수리 전에 여러 정비소 견적을 직접 비교하는 행동",
+      "published_at": null
+    },
+    {
+      "url": "https://www.mk.co.kr/news/business/7306073",
+      "title": "자동차 정비 견적 비교 서비스 이용 조사",
+      "source_type": "market",
+      "discovered_via_query": "자동차 수리 전에 여러 정비소 견적을 직접 비교하는 행동",
+      "published_at": null
+    },
+    {
+      "url": "https://smartcarview.com/car-repair-cost-complete-guide/",
+      "title": "자동차 수리비와 견적 확인 가이드",
+      "source_type": "review",
+      "discovered_via_query": "자동차 수리 전에 여러 정비소 견적을 직접 비교하는 행동",
+      "published_at": null
+    },
+    {
+      "url": "https://easycarefamily.com/%EA%B0%84%EB%B3%91-%EA%B5%90%EB%8C%80-%EC%9D%B8%EC%88%98%EC%9D%B8%EA%B3%84-3%EB%85%84-%EB%8F%8C%EB%B3%B4%EB%A9%B0-%EC%9E%A1%EC%9D%80-5%EA%B0%80%EC%A7%80-%EC%A0%84%EB%8B%AC-%EC%9B%90%EC%B9%99/",
+      "title": "간병 교대 인수인계 경험",
+      "source_type": "community",
+      "discovered_via_query": "가족 간병 교대 때 카톡과 메모로 상태를 인수인계하는 행동",
+      "published_at": null
+    },
+    {
+      "url": "https://world-serch.tistory.com/entry/%EB%B9%84%EC%A0%84%EB%AC%B8-%EB%B3%B4%ED%98%B8%EC%9E%90%EA%B0%80-%EA%B0%91%EC%9E%91%EC%8A%A4%EB%9F%BD%EA%B2%8C-%EC%9E%85%EC%9B%90-%ED%99%98%EC%9E%90%EB%A5%BC-%EA%B0%84%EB%B3%91%ED%95%B4%EC%95%BC-%ED%95%A0-%EB%95%8C-%EA%BC%AD-%EC%95%8C%EC%95%84%EC%95%BC-%ED%95%A0-%EA%B2%83%EB%93%A4",
+      "title": "비전문 보호자의 간병 메모 행동",
+      "source_type": "community",
+      "discovered_via_query": "가족 간병 교대 때 카톡과 메모로 상태를 인수인계하는 행동",
+      "published_at": null
+    },
+    {
+      "url": "https://www.caresenior.kr/2026/01/care-cost-three-month-forecast.html",
+      "title": "간병 비용과 상태를 종이와 메모 앱에 기록하는 방법",
+      "source_type": "review",
+      "discovered_via_query": "가족 간병 교대 때 카톡과 메모로 상태를 인수인계하는 행동",
+      "published_at": null
+    },
+    {
+      "url": "https://dolbomeum.com/",
+      "title": "가족 돌봄 일지와 공유 대안",
+      "source_type": "product",
+      "discovered_via_query": "가족 간병 교대 때 카톡과 메모로 상태를 인수인계하는 행동",
+      "published_at": null
+    }
+  ]
+}

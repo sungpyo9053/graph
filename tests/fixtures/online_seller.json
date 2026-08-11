@@ -1,0 +1,13 @@
+{
+  "notice": "TEST FIXTURE - not actual market evidence",
+  "theme": "online_seller_monitoring",
+  "persona": "small online seller",
+  "root_problem": "competitor price and availability states are fragmented across storefronts",
+  "wedge": "submit tracked product URLs and receive only verified price or stock exceptions",
+  "asset": "cross-store state-change and exception history",
+  "expansion": "merchandising and replenishment decisions using verified exception history",
+  "originals": [
+    "Every day I manually check multiple storefronts for competitor prices and stock, then copy the states into a spreadsheet. The work takes about 50 minutes.",
+    "Weekly we manually double-check six shops and track price or sold-out changes in Excel because the current alert tool is late. It takes 2 hours."
+  ]
+}

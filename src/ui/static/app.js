@@ -1,0 +1,5 @@
+// The discovery command performs external research only after explicit operator execution.
+async function runIdea(id){await fetch(`/api/v1/ideas/${id}/run`,{method:'POST'});location.reload()}
+async function approve(id,decision){const reason=document.querySelector('#approvalReason')?.value||'';const revise_node=decision==='REVISE'?document.querySelector('#reviseNode').value:null;const response=await fetch(`/api/v1/approvals/${id}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({decision,revise_node,reason})});if(!response.ok)alert(await response.text());else location.reload()}
+function filterRows(){const status=document.querySelector('#statusFilter')?.value||'';const risk=document.querySelector('#riskFilter')?.value||'';const confidence=Number(document.querySelector('#confidenceFilter')?.value||0);document.querySelectorAll('tbody tr[data-status]').forEach(row=>row.hidden=!!((status&&row.dataset.status!==status)||(risk&&row.dataset.risk!==risk)||Number(row.dataset.confidence)<confidence))}
+document.querySelectorAll('.filters input,.filters select').forEach(x=>x.addEventListener('input',filterRows));

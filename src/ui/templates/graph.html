@@ -1,0 +1,5 @@
+{% extends "base.html" %}{% block content %}
+<p><a href="/discoveries/{{ portfolio.run_id }}">← 조사 결과</a></p><h1>실행 경로</h1>
+<div class="notice">{{ portfolio.data_origin }} · {{ portfolio.provider }} · 후보 {{ portfolio.candidates|length }}개</div>
+<ol>{% for event in portfolio.events %}<li class="card"><strong>{{ event.node }}</strong> <span class="badge {{ event.status|lower }}">{{ event.status }}</span><br>{{ event.detail }}<br><small>{{ event.duration_ms }}ms</small></li>{% endfor %}</ol>
+{% endblock %}

@@ -1,0 +1,174 @@
+# Graph Design
+
+실제 builder가 등록한 conditional route registry, fan-out/fan-in, back-edge와 모든 종료 경로를 한 번에 보려면 [Runtime Graph](runtime-graph.md)를 사용한다.
+
+실제 CLI/API 실행은 `PortfolioDiscoveryGraph` facade가 컴파일된 최상위 LangGraph를 호출한다. 각 함수는 독립 호출 가능한 단일 책임 노드이고, 후보별 Problem/Product/Validation/Quality 그래프는 독립 테스트 가능한 서브그래프다.
+
+## 전체 오케스트레이션
+
+```mermaid
+flowchart TD
+    S((START)) --> Q[행동 중심 검색어 생성<br/>plan_queries]
+    Q --> C[collect_behavior_sources]
+    C --> N[사실·인용문 추출<br/>normalize_evidence]
+    N --> W[행동·우회 방법 추출<br/>detect_workarounds]
+    W --> D[행동 기준 문제 군집화<br/>deduplicate_root_problems]
+    D --> G{review_problem_evidence}
+    G -->|근거 미달| Q
+    G -->|A-C 독립 원문 2개 이상| O[orchestrate_candidate_subgraphs]
+    O -->|후보별 병렬 실행| P1[Candidate Graph 1]
+    O -->|후보별 병렬 실행| P2[Candidate Graph 2]
+    O -->|후보별 병렬 실행| PN[Candidate Graph N]
+    P1 --> M[merge candidate results]
+    P2 --> M
+    PN --> M
+    M --> R[select_distinct_candidates]
+    R --> V[save_result]
+    V --> E((END))
+```
+
+## 후보별 오케스트레이터
+
+```mermaid
+flowchart LR
+    S((START)) --> PG[Problem Graph]
+    PG -->|ANALYZE_MARKET_STRUCTURE| PR[Product Graph]
+    PG -->|REJECT/HOLD| E((END))
+    PR -->|DESIGN_VALIDATION| VG[Validation Graph]
+    PR -->|REJECT/HOLD| E
+    VG -->|APPROVE| QG[Quality Graph]
+    VG -->|HOLD/REJECT| E
+    QG -->|complete| T[write Thesis]
+    QG -->|hold/reject/human review| E
+    T --> E
+```
+
+## Problem Graph
+
+```mermaid
+flowchart LR
+    S((START)) --> P[extract_pain]
+    P --> U[identify_persona<br/>structured LLM]
+    U --> R[analyze_root_problem<br/>structured LLM]
+    R --> G{review_problem_evidence<br/>code gate}
+    G -->|pass| E((END / market))
+    G -->|fail| X((END / reject))
+```
+
+`extract_pain`은 원문에 존재하는 손실 표현만 정규화한다. 사용자와 근본 문제는 입력에서 받지 않고 각각 `identify_persona`, `analyze_root_problem`이 원문 인용만 읽어 생성한다. 독립 원문 수와 필수 데이터는 코드가 최종 판정한다.
+
+## Product Graph
+
+```mermaid
+flowchart TD
+    S((START)) --> A[analyze_existing_alternatives]
+    A --> G[analyze_structural_gap<br/>structured LLM]
+    G --> W[design_wedge_candidates<br/>structured LLM, max 3]
+    W --> P[evaluate_problem_strength<br/>code]
+    W --> F[evaluate_repetition<br/>code]
+    W --> O[evaluate_workaround_strength<br/>code]
+    W --> SG[evaluate_structural_gap<br/>code from verified flag]
+    W --> SW[evaluate_switching_feasibility<br/>code]
+    W --> WS[evaluate_wedge_simplicity<br/>code]
+    W --> AS[evaluate_asset_accumulation<br/>structured LLM + code cap]
+    AS --> EX[evaluate_expansion_potential<br/>structured LLM + code cap]
+    W --> FF[evaluate_founder_fit<br/>code]
+    P --> M[merge_evaluations]
+    F --> M
+    O --> M
+    SG --> M
+    SW --> M
+    WS --> M
+    EX --> M
+    FF --> M
+    M --> SEL[select_wedge]
+    SEL --> C{product_quality_gate<br/>minimum testability · code}
+    C -->|DESIGN_VALIDATION| E((END / validation))
+    C -->|HOLD/REJECT| X((END))
+```
+
+평가 fan-out은 실제 LangGraph 병렬 edge다. 각 평가 노드는 자신의 필드만 기록하며 `merge_evaluations`에서 합친다. 축적 자산과 확장 경로도 서로 다른 노드다. 원문이 자산 통제와 재사용을 뒷받침하지 않으면 코드가 두 점수를 0/unknown으로 제한한다.
+
+## 확인편향 방지 입력 경계
+
+`discover-from-urls`의 URL 항목은 `url`, `title`, `source_type`, `discovered_via_query`, `published_at`만 허용한다. `persona`, `root_problem`, `wedge`, `asset`, `expansion`, 최종 평가는 Pydantic `extra="forbid"`로 입력 단계에서 거부한다. 따라서 데이터 흐름은 반드시 `원문 → 행동 → 문제 → 해결책`이고, 미리 만든 아이디어에 맞는 원문을 사후 정당화하는 흐름을 허용하지 않는다.
+
+## Validation Graph
+
+```mermaid
+flowchart LR
+    S((START)) --> D[design_validation]
+    D --> R{validation_contract_gate<br/>code}
+    R -->|APPROVE| Q[Quality Graph]
+    R -->|HOLD/REJECT| X((END))
+    Q --> E((END))
+```
+
+## Quality Gate → Critique → Arbitrate → Revise → Verify
+
+```mermaid
+flowchart TD
+    S((START)) --> EG{evidence_gate<br/>code contract}
+    EG -->|pass| CC[cold_critique<br/>fresh ephemeral Codex]
+    EG -->|weak evidence| CM((collect_more))
+    EG -->|bad behavior| EB((extract_behavior))
+    EG -->|fixture or conclusion hint| RJ((reject))
+    CC -->|finding| AR{arbitrate<br/>code evidence wins}
+    CC -->|same canonical blocking finding twice| HL((HOLD: NON_CONVERGING_LOOP))
+    AR -->|root problem| RP[root_problem_analysis]
+    AR -->|alternative/gap| MR[market_research]
+    AR -->|wedge/data/switch| WD[wedge_design]
+    AR -->|asset/expansion| AE[asset_expansion_analysis]
+    AR -->|weak evidence| CM
+    AR -->|cluster| RC((recluster))
+    AR -->|fatal| RJ
+    AR -->|debatable/high risk| HR((human_review))
+    RP --> REV[revision record]
+    MR --> REV
+    WD --> REV
+    AE --> REV
+    REV -->|state changed| EG
+    REV -->|no change / max 3| HL
+    AR -->|no valid finding| FV{final_verify<br/>all contract checks}
+    FV -->|fail| HL
+    FV -->|data inaccessible| HL
+    FV -->|pass| XC[exit_challenger<br/>fresh ephemeral Codex]
+    XC -->|new BLOCKING finding| AR
+    XC -->|none| T[write Thesis]
+    T --> E((END))
+```
+
+`DiscoveryContract`는 시작 시 독립 근거 수, 원문 GET, 우회 행동, fixture/결론 힌트 금지, claim-evidence 연결, 첫 사용자 가치, 데이터 접근 가능성과 반복 상한을 고정한다. `cold_critique`와 `exit_challenger`는 각각 새 `codex exec --ephemeral --sandbox read-only` 프로세스로 실행하고 이전 critique를 입력하지 않는다. 비판자는 finding만 제안하며 점수나 상태를 바꾸지 않는다. 코드는 원문·근거 ID·계약 조건을 먼저 적용하고 비판자의 `recommended_route`를 복사하지 않는다.
+
+`REPORT_COMPLETE`는 그래프 실행/보고서 작성의 성공 상태다. 아이디어 품질 판정은 별도 `RESEARCH`, `INTERVIEW`, `VALIDATE`, `HOLD`, `REJECT`다. `VALIDATE`는 검증 완료가 아니라 Wedge 행동 실험 대상으로 승인됐다는 뜻이다. 전환·결제·반복 사용·자산·확장 미검증은 HOLD 사유가 아니라 unknown과 validation hypothesis다. 반복 finding은 category만 세지 않고 category, affected claim, root cause, 코드 actual route, evidence scope의 canonical fingerprint로 판정한다.
+
+수정은 category별 정확한 노드로 돌아간 후 항상 `evidence_gate`부터 재검증한다. critique/revision은 각각 최대 3회이고, 동일 BLOCKING category가 두 번 나오거나 fingerprint가 변하지 않으면 HOLD한다. Thesis는 `final_verify`와 `exit_challenger`를 모두 통과한 후보에만 작성한다.
+
+## LLM과 코드의 결정 경계
+
+| 판단 | 담당 |
+|---|---|
+| 원문 접근 여부, 독립 URL/작성자, A-C 근거 수 | 코드 |
+| 중복 유사도, 필수 필드, 점수 합산, 후보 상한 | 코드 |
+| 재시도 횟수, 데이터 접근 불가, 첫 사용자 가치 필수 조건 | 코드 |
+| 표면 불편 아래의 근본 문제 | 구조화된 LLM |
+| 대안이 남기는 구조적 공백의 의미 | 구조화된 LLM |
+| 본질적으로 다른 진입 웨지 | 구조화된 LLM |
+| 자산과 확장 사이의 의미적 인과관계 제안 | 구조화된 LLM, 코드가 근거 상태 제한 |
+| 가장 강한 반론과 제안 경로 | 구조화된 LLM, 코드가 최종 override |
+
+모든 LLM 출력은 Pydantic 스키마로 검증한다. `LLM_PROVIDER=codex`에서는 로그인된 Codex CLI의 GPT를 사용한다. deterministic fake는 명시적인 테스트 실행에만 사용하며 Codex 오류 시 fallback으로 사용하지 않는다.
+
+## 패턴 출처와 검증 한계
+
+Ranteck/graph-engineer에서 차용한 것은 일반적인 `QUALITY GATE → CRITIQUE → ARBITRATE → REVISE → VERIFY` 그래프 패턴뿐이다. 저장소의 Claude Code skill, 코드 개발용 역할, `PROJECT_CONTEXT.md`, 소스코드나 고유 문구는 설치·복사하지 않았다. 따라서 별도 저작권 코드가 포함되지 않는다.
+
+아이디어 생성·Cold Critique·Exit Challenger가 모두 같은 Codex 모델을 사용하므로 독립적인 교차 모델 검증은 아니다. fresh/ephemeral 실행은 이전 판단에 끌리는 현상을 줄일 뿐 같은 모델의 공통 맹점을 제거하지 못한다. 책임 경계는 **Codex: 비판 제안 → 코드 Gate: 확인 가능한 사실 판정 → 사람: 논쟁적·고위험 판단 승인**이다.
+
+## 종료 및 실패 처리
+
+- 독립적인 `ORIGINAL_VERIFIED` A-C 근거가 두 건 미만이면 후보 그래프를 호출하지 않는다.
+- snippet-only 자료는 승인 근거로 승격하지 않는다.
+- Quality critique와 revision은 각각 최대 3회이며, 동일 canonical blocking finding 2회 또는 무변경 반복은 HOLD한다.
+- 후보 그래프는 서로 병렬 실행되고 실패는 최상위 실행 실패로 기록된다.
+- 최종 후보는 근본 문제뿐 아니라 행동·해결 archetype 유사도를 다시 검사하며 최대 5개이고 부족분을 채우지 않는다.
