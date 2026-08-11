@@ -302,6 +302,64 @@ async def test_exit_challenger_new_blocking_finding_prevents_completion() -> Non
 
 
 @pytest.mark.asyncio
+async def test_exit_challenger_testable_unknown_completes_without_reentry() -> None:
+    testable = _finding(CritiqueCategory.NO_BEHAVIOR_CHANGE).model_copy(
+        update={"severity": "TESTABLE_UNKNOWN"}
+    )
+    llm = DeterministicFakeLLM(
+        {
+            "exit_challenger": {
+                "observed_facts": ["the behavior is not yet observed after the wedge"],
+                "inferences": [],
+                "assumptions": [],
+                "unknowns": ["switching behavior"],
+                "decision": "TEST",
+                "decision_reason": "this belongs in validation, not a completion loop",
+                "blocking_finding": testable.model_dump(mode="json"),
+            }
+        }
+    )
+    result = await build_quality_graph(FixtureDiscoveryCollector(), llm).ainvoke(_state())
+    assert result["next_route"] == "report_complete"
+    assert [call["task"] for call in llm.calls].count("exit_challenger") == 1
+
+
+@pytest.mark.asyncio
+async def test_exit_challenger_false_positive_does_not_run_challenger_again() -> None:
+    unsupported = _finding(CritiqueCategory.WRONG_ROOT_PROBLEM).model_copy(
+        update={"evidence_ids": ["not-a-candidate-evidence-id"]}
+    )
+    llm = DeterministicFakeLLM(
+        {
+            "exit_challenger": {
+                "observed_facts": [],
+                "inferences": ["a blocker was proposed"],
+                "assumptions": [],
+                "unknowns": [],
+                "decision": "BLOCK",
+                "decision_reason": "the cited evidence is not in the candidate",
+                "blocking_finding": unsupported.model_dump(mode="json"),
+            }
+        }
+    )
+    result = await build_quality_graph(FixtureDiscoveryCollector(), llm).ainvoke(_state())
+    assert result["next_route"] == "report_complete"
+    assert result["arbitration_results"][0].verdict == "FALSE_POSITIVE"
+    assert [call["task"] for call in llm.calls].count("exit_challenger") == 1
+
+
+@pytest.mark.asyncio
+async def test_quality_model_call_limit_holds_before_exit_challenger() -> None:
+    state = _state()
+    state["discovery_contract"] = DiscoveryContract(max_quality_model_calls=1)
+    llm = DeterministicFakeLLM()
+    result = await build_quality_graph(FixtureDiscoveryCollector(), llm).ainvoke(state)
+    assert result["next_route"] == "hold"
+    assert [call["task"] for call in llm.calls] == ["cold_critique"]
+    assert any("quality model call limit reached" in item["detail"] for item in result["trace"])
+
+
+@pytest.mark.asyncio
 async def test_testable_unknown_updates_validation_plan_without_hold() -> None:
     finding = _finding(CritiqueCategory.NO_BEHAVIOR_CHANGE).model_copy(
         update={

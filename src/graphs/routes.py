@@ -58,6 +58,7 @@ QUALITY_ARBITRATION_ROUTES: dict[Hashable, str] = {
     "collect_more": END,
     "extract_behavior": END,
     "recluster": END,
+    "report_complete": END,
 }
 QUALITY_REVISION_ROUTES: dict[Hashable, str] = {"evidence_gate": "evidence_gate", "hold": END}
 QUALITY_VERIFY_ROUTES: dict[Hashable, str] = {

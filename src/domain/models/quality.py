@@ -124,6 +124,9 @@ class DiscoveryContract(BaseModel):
     require_feasible_data_access: bool = True
     max_critique_rounds: int = 3
     max_revision_rounds: int = 3
+    max_exit_challenge_rounds: int = 4
+    max_quality_model_calls: int = 12
+    max_quality_elapsed_minutes: float = 15
     repeated_root_finding_limit: int = 2
 
 

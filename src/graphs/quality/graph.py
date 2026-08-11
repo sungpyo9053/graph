@@ -59,6 +59,9 @@ def build_quality_graph(collector: DiscoveryCollector, llm: LLMClient) -> Any:
         result = evaluate_evidence_gate(dict(state), contract)
         return {
             "discovery_contract": contract,
+            "quality_started_at": state.get("quality_started_at", started),
+            "quality_model_calls": int(state.get("quality_model_calls", 0)),
+            "exit_challenge_round": int(state.get("exit_challenge_round", 0)),
             "evidence_gate": result,
             "next_route": result.next_route,
             "visited_nodes": ["evidence_gate"],
@@ -68,6 +71,9 @@ def build_quality_graph(collector: DiscoveryCollector, llm: LLMClient) -> Any:
     async def cold_critique(state: CandidateGraphState) -> dict:
         started, clock = datetime.now(UTC), perf_counter()
         contract = state["discovery_contract"]
+        limit_reason = _quality_limit_reason(state, contract)
+        if limit_reason:
+            return _quality_limit_hold("cold_critique", started, clock, limit_reason)
         round_number = int(state.get("critique_round", 0)) + 1
         if round_number > contract.max_critique_rounds:
             return {
@@ -106,6 +112,7 @@ def build_quality_graph(collector: DiscoveryCollector, llm: LLMClient) -> Any:
             "finding_history": history,
             "revision_records": records,
             "critique_round": round_number,
+            "quality_model_calls": int(state.get("quality_model_calls", 0)) + 1,
             "next_route": route,
             "visited_nodes": ["cold_critique"],
             "trace": [trace("cold_critique", started, clock, detail, suggested_route=result.decision, actual_route=route, route_reason=detail)],
@@ -135,6 +142,10 @@ def build_quality_graph(collector: DiscoveryCollector, llm: LLMClient) -> Any:
         )
         if non_converging:
             route = "hold"
+        elif state.get("exit_challenger_pending") and route == "final_verify":
+            # This candidate already passed final_verify. A challenger finding that
+            # code arbitration rejects must finish instead of re-running challenger.
+            route = "report_complete"
         reason = (
             "NON_CONVERGING_LOOP: same canonical blocking finding repeated"
             if non_converging
@@ -164,6 +175,7 @@ def build_quality_graph(collector: DiscoveryCollector, llm: LLMClient) -> Any:
                 *testable_unknowns,
             ],
             "validation_plan": validation_plan,
+            "exit_challenger_pending": False,
             "visited_nodes": ["arbitrate"],
             "trace": [
                 trace(
@@ -183,6 +195,9 @@ def build_quality_graph(collector: DiscoveryCollector, llm: LLMClient) -> Any:
         route = state["next_route"]
         contract = state["discovery_contract"]
         revision_round = int(state.get("revision_round", 0)) + 1
+        limit_reason = _quality_limit_reason(state, contract)
+        if limit_reason:
+            return _quality_limit_hold(route, started, clock, limit_reason)
         if revision_round > contract.max_revision_rounds:
             return {
                 "next_route": "hold",
@@ -247,6 +262,8 @@ def build_quality_graph(collector: DiscoveryCollector, llm: LLMClient) -> Any:
         return {
             **update,
             "revision_round": revision_round,
+            "quality_model_calls": int(state.get("quality_model_calls", 0)) + 1,
+            "exit_challenger_pending": False,
             "revision_records": [*state.get("revision_records", []), record],
             "next_route": "evidence_gate" if changed else "hold",
             "visited_nodes": [route],
@@ -272,6 +289,16 @@ def build_quality_graph(collector: DiscoveryCollector, llm: LLMClient) -> Any:
 
     async def exit_challenger(state: CandidateGraphState) -> dict:
         started, clock = datetime.now(UTC), perf_counter()
+        contract = state["discovery_contract"]
+        round_number = int(state.get("exit_challenge_round", 0)) + 1
+        limit_reason = _quality_limit_reason(state, contract)
+        if round_number > contract.max_exit_challenge_rounds:
+            limit_reason = (
+                f"exit challenger limit exceeded: {round_number - 1}/"
+                f"{contract.max_exit_challenge_rounds}"
+            )
+        if limit_reason:
+            return _quality_limit_hold("exit_challenger", started, clock, limit_reason)
         fresh = create_fresh_llm_client(llm)
         try:
             result = await generate_with_schema_retry(
@@ -288,16 +315,24 @@ def build_quality_graph(collector: DiscoveryCollector, llm: LLMClient) -> Any:
             )
         finally:
             merge_call_audit(llm, fresh)
-        if result.blocking_finding is None:
+        if (
+            result.blocking_finding is None
+            or result.blocking_finding.severity != "BLOCKING"
+        ):
             route = "report_complete"
             findings = []
+            pending = False
         else:
             route = "arbitrate"
             findings = [result.blocking_finding]
+            pending = True
         return {
             "critique_findings": findings,
             "finding_history": [*state.get("finding_history", []), *findings],
             "next_route": route,
+            "exit_challenge_round": round_number,
+            "quality_model_calls": int(state.get("quality_model_calls", 0)) + 1,
+            "exit_challenger_pending": pending,
             "visited_nodes": ["exit_challenger"],
             "trace": [
                 trace(
@@ -360,6 +395,42 @@ def build_quality_graph(collector: DiscoveryCollector, llm: LLMClient) -> Any:
         QUALITY_EXIT_ROUTES,
     )
     return builder.compile()
+
+
+def _quality_limit_reason(
+    state: CandidateGraphState, contract: DiscoveryContract
+) -> str | None:
+    calls = int(state.get("quality_model_calls", 0))
+    if calls >= contract.max_quality_model_calls:
+        return f"quality model call limit reached: {calls}/{contract.max_quality_model_calls}"
+    started = state.get("quality_started_at")
+    if isinstance(started, datetime):
+        elapsed_minutes = (datetime.now(UTC) - started).total_seconds() / 60
+        if elapsed_minutes >= contract.max_quality_elapsed_minutes:
+            return (
+                "quality elapsed time limit reached: "
+                f"{elapsed_minutes:.1f}/{contract.max_quality_elapsed_minutes:.1f} minutes"
+            )
+    return None
+
+
+def _quality_limit_hold(
+    node: str, started: datetime, clock: float, reason: str
+) -> dict[str, Any]:
+    return {
+        "next_route": "hold",
+        "visited_nodes": [node],
+        "trace": [
+            trace(
+                node,
+                started,
+                clock,
+                reason,
+                actual_route="hold",
+                route_reason=reason,
+            )
+        ],
+    }
 
 
 def _review_packet(state: CandidateGraphState) -> dict[str, Any]:

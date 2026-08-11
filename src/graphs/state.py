@@ -152,6 +152,10 @@ class CandidateGraphState(TypedDict, total=False):
     verification_result: VerificationResult
     critique_round: int
     revision_round: int
+    exit_challenge_round: int
+    quality_model_calls: int
+    quality_started_at: Any
+    exit_challenger_pending: bool
     visited_nodes: Annotated[list[str], operator.add]
     next_route: str
     error_type: str
