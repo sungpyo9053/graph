@@ -349,9 +349,14 @@ async def design_wedge_candidates_node(
             "workarounds": [item.workaround for item in cluster.observations],
             "evidence": evidence_context(cluster),
             "constraints": "maximum 3 materially different wedges; each must be one input -> one result",
+            "behavior_displacement_contract": (
+                "For each wedge state whether it REMOVES_STEP, CONSOLIDATES_STEPS, "
+                "NO_DISPLACEMENT, or UNKNOWN; count expected removed workaround steps; "
+                "and state whether the user must re-enter the same data into an incumbent form."
+            ),
         },
         output_model=WedgeDesignAnalysis,
-        metadata={"prompt_version": "wedge-design-v1", "candidate_id": cluster.cluster_id},
+        metadata={"prompt_version": "wedge-design-v2", "candidate_id": cluster.cluster_id},
     )
     wedges = result.candidates[:3]
     return {

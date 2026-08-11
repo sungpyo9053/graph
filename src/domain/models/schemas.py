@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from enum import StrEnum
-from typing import Any
+from typing import Any, Literal
 from uuid import uuid4
 
 from pydantic import BaseModel, ConfigDict, Field, HttpUrl, model_validator
@@ -50,6 +50,21 @@ class EvidenceGrade(StrEnum):
     C = "C"
     D = "D"
     E = "E"
+
+
+class EvidenceSourceRole(StrEnum):
+    """How a fetched original supports a claim.
+
+    Only FIRSTHAND_BEHAVIOR is eligible for the independent behavior-evidence
+    gate. Guides and official process pages remain useful for market/process
+    research, but they are not observations of a user performing the behavior.
+    """
+
+    FIRSTHAND_BEHAVIOR = "FIRSTHAND_BEHAVIOR"
+    PROCEDURAL_GUIDE = "PROCEDURAL_GUIDE"
+    OFFICIAL_PROCESS = "OFFICIAL_PROCESS"
+    SECONDARY_REPORT = "SECONDARY_REPORT"
+    UNCLASSIFIED = "UNCLASSIFIED"
 
 
 class FinalVerdict(StrEnum):
@@ -115,6 +130,8 @@ class Evidence(BaseModel):
     is_fixture: bool = False
     access_level: str = "ORIGINAL_VERIFIED"
     accessed_at: datetime | None = None
+    source_role: EvidenceSourceRole = EvidenceSourceRole.UNCLASSIFIED
+    behavior_claim_verified: bool = False
 
 
 class Alternative(BaseModel):
@@ -145,6 +162,11 @@ class WedgeCandidate(BaseModel):
     data_access_feasible: bool
     problem_relevance: bool = True
     manual_validation_feasible: bool = True
+    behavior_displacement: Literal[
+        "REMOVES_STEP", "CONSOLIDATES_STEPS", "NO_DISPLACEMENT", "UNKNOWN"
+    ] = "UNKNOWN"
+    expected_steps_removed: int | None = Field(default=None, ge=0)
+    external_form_reentry_required: bool | None = None
     complexity: str
 
 
@@ -194,6 +216,7 @@ class ThesisEvidence(BaseModel):
     is_fixture: bool
     access_level: str = "ORIGINAL_VERIFIED"
     accessed_at: datetime | None = None
+    source_role: EvidenceSourceRole = EvidenceSourceRole.UNCLASSIFIED
 
 
 class ProblemWedgeExpansionThesis(BaseModel):

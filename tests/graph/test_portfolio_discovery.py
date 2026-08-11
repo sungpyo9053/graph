@@ -153,6 +153,34 @@ async def test_orchestrator_calls_qualitative_llm_nodes_and_keeps_numeric_gates_
 
 
 @pytest.mark.asyncio
+async def test_configured_codex_provider_is_reported_even_when_gate_prevents_all_calls() -> None:
+    class EmptyFixtureCollector:
+        is_fixture = True
+        provider_name = "empty-test-fixture"
+
+        async def search(self, *args, **kwargs):
+            return [], []
+
+    class NoCallCodexStub:
+        provider = "codex"
+        model = "codex-test-stub"
+        calls: list[dict] = []
+
+        async def generate_structured(self, **kwargs):
+            raise AssertionError("evidence gate should prevent every LLM call")
+
+    portfolio = await PortfolioDiscoveryGraph(
+        EmptyFixtureCollector(),  # type: ignore[arg-type]
+        allow_test_fixture=True,
+        llm=NoCallCodexStub(),  # type: ignore[arg-type]
+    ).run(DiscoveryRequest(mode=DiscoveryMode.OPEN))
+
+    assert portfolio.candidates == []
+    assert portfolio.llm_provider == "codex"
+    assert portfolio.llm_call_audit == []
+
+
+@pytest.mark.asyncio
 async def test_final_selection_blocks_same_behavior_and_solution_archetype() -> None:
     portfolio = await PortfolioDiscoveryGraph(
         FixtureDiscoveryCollector(), allow_test_fixture=True

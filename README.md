@@ -109,7 +109,7 @@ make discover MODE=focused FOCUS="dental clinic operations"
 - `source-audit.json`: URL별 `ORIGINAL_VERIFIED`/`SEARCH_SNIPPET_ONLY`, 접근 시각과 실패 이유
 - `candidate-N.md`: 정확한 20개 섹션의 Problem–Wedge–Expansion Thesis
 
-검색 snippet만 본 자료는 `SEARCH_SNIPPET_ONLY`, 실제 URL을 가져와 본문을 파싱한 자료는 `ORIGINAL_VERIFIED`입니다. 최종 A~C 근거에는 후자만 들어갑니다.
+검색 snippet만 본 자료는 `SEARCH_SNIPPET_ONLY`, 실제 URL을 가져와 본문을 파싱한 자료는 `ORIGINAL_VERIFIED`입니다. 최종 A~C 행동 근거에는 원문 GET에 성공했을 뿐 아니라 작성자 자신의 수행 경험으로 분류된 `FIRSTHAND_BEHAVIOR`만 들어갑니다. 절차 안내(`PROCEDURAL_GUIDE`)와 공식 접수 규정(`OFFICIAL_PROCESS`)은 대안 조사에는 쓰지만 행동 근거 수를 늘리지 않습니다.
 
 ## 결과 조회 UI/API
 

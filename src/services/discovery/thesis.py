@@ -90,6 +90,7 @@ def build_thesis(
             is_fixture=item.is_fixture,
             access_level=item.access_level,
             accessed_at=item.accessed_at,
+            source_role=item.source_role,
         )
         for item in evidence
     ]
@@ -200,6 +201,9 @@ def design_wedge(cluster: ProblemCluster) -> WedgeCandidate:
         data_access_feasible=True,
         problem_relevance=True,
         manual_validation_feasible=True,
+        behavior_displacement="UNKNOWN",
+        expected_steps_removed=None,
+        external_form_reentry_required=None,
         complexity="LOW",
     )
 

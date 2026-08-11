@@ -396,9 +396,7 @@ def build_discovery_graph(collector: DiscoveryCollector, llm: LLMClient) -> Any:
             for item in raw_llm_calls
             if item.get("provider") == "codex"
         ]
-        llm_provider = "codex" if llm_audit else (
-            "fake" if getattr(llm, "model", "") == "deterministic-fake-v1" else "openai"
-        )
+        llm_provider = getattr(llm, "provider", "unknown")
         portfolio = DiscoveryPortfolio(
             run_id=state["run_id"],
             mode=state["request"].mode,

@@ -63,6 +63,8 @@ class SchemaLLMError(LLMError):
 
 
 class LLMClient(Protocol):
+    provider: str
+
     async def generate_structured(
         self,
         *,
@@ -74,6 +76,7 @@ class LLMClient(Protocol):
 
 
 class DeterministicFakeLLM:
+    provider = "fake"
     model = "deterministic-fake-v1"
 
     def __init__(self, responses: dict[str, dict] | None = None):
@@ -150,6 +153,9 @@ class DeterministicFakeLLM:
                     "data_access_feasible": True,
                     "problem_relevance": True,
                     "manual_validation_feasible": True,
+                    "behavior_displacement": "REMOVES_STEP",
+                    "expected_steps_removed": 1,
+                    "external_form_reentry_required": False,
                     "complexity": "LOW"
                 }],
                 "rationale": "The candidate is constrained to one input, one process, and one decision-relevant output.",
@@ -185,6 +191,8 @@ class DeterministicFakeLLM:
 
 
 class OpenAICompatibleLLM:
+    provider = "openai"
+
     def __init__(self) -> None:
         cfg = settings()
         if not cfg.openai_api_key:
@@ -238,6 +246,8 @@ class OpenAICompatibleLLM:
 
 class CodexLLMClient:
     """Structured GPT calls through an already authenticated local Codex CLI."""
+
+    provider = "codex"
 
     def __init__(self, *, semaphore: asyncio.Semaphore | None = None) -> None:
         cfg = settings()

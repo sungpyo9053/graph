@@ -14,6 +14,7 @@ from src.domain.models.quality import (
     VerificationCheck,
     VerificationResult,
 )
+from src.domain.policies.evidence import independent_qualifying_evidence
 
 REVISION_ROUTE = {
     CritiqueCategory.WEAK_EVIDENCE: "collect_more",
@@ -54,7 +55,8 @@ def evaluate_evidence_gate(
     state: dict[str, Any], contract: DiscoveryContract
 ) -> VerificationResult:
     cluster = state["cluster"]
-    evidence = cluster.independent_evidence
+    all_evidence = cluster.independent_evidence
+    evidence = independent_qualifying_evidence(all_evidence)
     evidence_ids = [item.signal_id for item in evidence]
     forbidden = {
         "persona_hint",
@@ -64,23 +66,25 @@ def evaluate_evidence_gate(
         "expansion_hint",
     }
     dumped_keys = set(cluster.model_dump())
-    unique_independence = len({item.independence_key for item in evidence}) == len(evidence)
+    unique_independence = len(
+        {item.independence_key for item in all_evidence}
+    ) == len(all_evidence)
     unique_authors_and_items = len(
-        {(item.author_key, item.original_item_key) for item in evidence}
-    ) == len(evidence)
+        {(item.author_key, item.original_item_key) for item in all_evidence}
+    ) == len(all_evidence)
     checks = [
         VerificationCheck(
             name="fixture_free_live",
             passed=(
                 not state.get("live_run", True)
                 or not contract.forbid_fixture_in_live
-                or not any(item.is_fixture for item in evidence)
+                or not any(item.is_fixture for item in all_evidence)
             ),
             reason=(
                 "non-live deterministic test run"
                 if not state.get("live_run", True)
                 else "live evidence contains no fixture"
-                if not any(item.is_fixture for item in evidence)
+                if not any(item.is_fixture for item in all_evidence)
                 else "fixture contamination"
             ),
             evidence_ids=evidence_ids,
@@ -88,7 +92,7 @@ def evaluate_evidence_gate(
         VerificationCheck(
             name="original_get_success",
             passed=not contract.require_original_get
-            or all(item.access_level == "ORIGINAL_VERIFIED" for item in evidence),
+            or all(item.access_level == "ORIGINAL_VERIFIED" for item in all_evidence),
             reason="all evidence came from successful original GETs",
             evidence_ids=evidence_ids,
         ),
@@ -255,6 +259,21 @@ def final_verify(state: dict[str, Any], contract: DiscoveryContract) -> Verifica
                 name="validation_plan_present",
                 passed=state.get("validation_plan") is not None,
                 reason="bounded validation must exist before thesis",
+            ),
+            VerificationCheck(
+                name="behavior_displacement_not_disproven",
+                passed=bool(
+                    wedge
+                    and wedge.behavior_displacement != "NO_DISPLACEMENT"
+                    and not (
+                        wedge.external_form_reentry_required is True
+                        and (wedge.expected_steps_removed or 0) == 0
+                    )
+                ),
+                reason=(
+                    "entry wedge must remove or consolidate at least one evidenced "
+                    "workaround step; duplicating an incumbent form is not displacement"
+                ),
             ),
         ]
     )

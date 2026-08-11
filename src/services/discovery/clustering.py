@@ -98,7 +98,7 @@ def has_minimum_strong_evidence(
 ) -> bool:
     qualifying: list[Evidence] = [
         item
-        for item in cluster.independent_evidence
+        for item in independent_qualifying_evidence(cluster.independent_evidence)
         if item.grade in {EvidenceGrade.A, EvidenceGrade.B, EvidenceGrade.C}
         and item.access_level == "ORIGINAL_VERIFIED"
         and (allow_fixture or not item.is_fixture)

@@ -91,6 +91,7 @@ def render_candidate(candidate: PortfolioCandidate) -> str:
         f"  - published: {item.date or 'unknown'}\n"
         f"  - accessed: {item.accessed_at or 'unknown'}\n"
         f"  - access: {item.access_level}\n"
+        f"  - source role: {item.source_role}\n"
         f"  - independence: {item.independence_key}"
         for item in thesis.evidence
     )

@@ -15,6 +15,7 @@ from src.domain.models.quality import CritiqueCategory, CritiqueFinding, Discove
 from src.domain.models.schemas import (
     Evidence,
     EvidenceGrade,
+    EvidenceSourceRole,
     Score,
     ValidationPlan,
     WedgeCandidate,
@@ -53,6 +54,8 @@ def _evidence(index: int, *, fixture: bool = True) -> Evidence:
         is_fixture=fixture,
         access_level="ORIGINAL_VERIFIED",
         accessed_at=datetime(2026, 8, 1, tzinfo=UTC),
+        source_role=EvidenceSourceRole.FIRSTHAND_BEHAVIOR,
+        behavior_claim_verified=True,
     )
 
 
@@ -195,6 +198,33 @@ def test_contract_blocks_fixture_contamination_and_inaccessible_high_score() -> 
     assert next(check for check in verified.checks if check.name == "data_access_feasible").passed is False
 
 
+def test_evidence_gate_rejects_procedural_guides_as_user_behavior() -> None:
+    state = _state(fixture=False)
+    guides = [
+        item.model_copy(
+            update={
+                "source_role": EvidenceSourceRole.PROCEDURAL_GUIDE,
+                "behavior_claim_verified": False,
+            }
+        )
+        for item in state["cluster"].independent_evidence
+    ]
+    state["cluster"] = state["cluster"].model_copy(
+        update={"independent_evidence": guides}
+    )
+
+    gate = evaluate_evidence_gate(state, DiscoveryContract())
+
+    assert gate.passed is False
+    assert gate.next_route == "collect_more"
+    count = next(
+        check for check in gate.checks
+        if check.name == "minimum_independent_behavior_evidence"
+    )
+    assert count.passed is False
+    assert "independent evidence=0" in count.reason
+
+
 def test_product_unknowns_move_to_validation_instead_of_hold() -> None:
     state = _state()
     decision = evaluate_product_testability(state["cluster"], state["selected_wedge"])
@@ -229,6 +259,58 @@ def test_product_rejects_unrelated_wedge_and_holds_impossible_experiment() -> No
         update={"manual_validation_feasible": False}
     )
     assert evaluate_product_testability(state["cluster"], impossible).route == "HOLD"
+
+
+def test_product_rejects_wedge_that_duplicates_incumbent_form_without_removing_steps() -> None:
+    state = _state()
+    no_displacement = state["selected_wedge"].model_copy(
+        update={
+            "behavior_displacement": "NO_DISPLACEMENT",
+            "expected_steps_removed": 0,
+            "external_form_reentry_required": True,
+        }
+    )
+
+    decision = evaluate_product_testability(state["cluster"], no_displacement)
+
+    assert decision.route == "REJECT"
+    assert "does not remove or consolidate" in decision.reason
+
+
+def test_unknown_displacement_is_validation_hypothesis_not_automatic_hold() -> None:
+    state = _state()
+    unknown = state["selected_wedge"].model_copy(
+        update={
+            "behavior_displacement": "UNKNOWN",
+            "expected_steps_removed": None,
+            "external_form_reentry_required": None,
+        }
+    )
+
+    decision = evaluate_product_testability(state["cluster"], unknown)
+
+    assert decision.route == "DESIGN_VALIDATION"
+    assert any("workaround step" in item for item in decision.unknowns)
+
+
+def test_final_verify_blocks_known_no_displacement() -> None:
+    state = _state()
+    state["selected_wedge"] = state["selected_wedge"].model_copy(
+        update={
+            "behavior_displacement": "NO_DISPLACEMENT",
+            "expected_steps_removed": 0,
+            "external_form_reentry_required": True,
+        }
+    )
+
+    result = final_verify(state, DiscoveryContract())
+
+    assert result.passed is False
+    assert result.next_route == "hold"
+    assert next(
+        check for check in result.checks
+        if check.name == "behavior_displacement_not_disproven"
+    ).passed is False
 
 
 def test_same_blocking_root_finding_stops_after_two_rounds() -> None:

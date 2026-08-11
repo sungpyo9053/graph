@@ -10,7 +10,7 @@ from src.domain.models.discovery import (
     PublicDocument,
     SearchQuery,
 )
-from src.domain.models.schemas import Evidence, EvidenceGrade
+from src.domain.models.schemas import Evidence, EvidenceGrade, EvidenceSourceRole
 from src.domain.policies.evidence import freshness_score
 
 BEHAVIOR_TERMS = re.compile(
@@ -45,6 +45,21 @@ LOSS = re.compile(
     r"\b(?:about\s+|roughly\s+)?\d+(?:\.\d+)?\s*(?:hours?|hrs?|minutes?|mins?|days?|시간|분|일)\b",
     re.IGNORECASE,
 )
+FIRSTHAND_MARKERS = re.compile(
+    r"(?:\b(?:i|we|my|our)\b|i['’]?ve|i\s+(?:had to|keep|kept|called|paid|bought|"
+    r"recorded|checked|used)|(?<![가-힣])(?:저는|제가|나는|내가|우리는|우리가)(?![가-힣])|"
+    r"(?:했어요|했습니다|했다|했는데|해봤|걸렸어요|걸렸다|연락했|전화했|"
+    r"기록했|쓰고\s*있|사용\s*중)|나중에는|경험상)",
+    re.IGNORECASE,
+)
+PROCEDURAL_MARKERS = re.compile(
+    r"(?:how\s+to|steps?\s+to|you\s+(?:should|must|need to)|is required|guide|"
+    r"방법|절차|가이드|준비(?:물|해야)|해야\s*(?:합니다|한다|됩니다)|하세요|하십시오|"
+    r"제출(?:해야|합니다)|접수(?:해야|방법|절차)|필요(?:합니다|하다)|경우에는)",
+    re.IGNORECASE,
+)
+OFFICIAL_SOURCE_TYPES = {"official", "company", "product", "government", "policy"}
+SECONDARY_SOURCE_TYPES = {"news", "report", "research", "article"}
 
 
 def extract_observations(
@@ -76,7 +91,11 @@ def extract_observations(
         if query is None:
             exclusions["query_metadata_missing"] += 1
             continue
-        grade = _grade(excerpt)
+        source_role = classify_source_role(result.result_type, excerpt)
+        if source_role != EvidenceSourceRole.FIRSTHAND_BEHAVIOR:
+            exclusions[f"not_firsthand_behavior:{source_role.value.lower()}"] += 1
+            continue
+        grade = _grade(excerpt, source_role)
         host = (urlparse(url).hostname or "unknown").lower()
         item_key = url.split("#", 1)[0]
         published = result.published_at
@@ -99,6 +118,8 @@ def extract_observations(
             is_fixture=result.is_fixture,
             access_level=document.access_level,
             accessed_at=document.accessed_at,
+            source_role=source_role,
+            behavior_claim_verified=True,
         )
         observations.append(
             BehaviorObservation(
@@ -125,7 +146,24 @@ def _behavior_excerpt(text: str) -> str | None:
     return None
 
 
-def _grade(text: str) -> EvidenceGrade:
+def classify_source_role(source_type: str, text: str) -> EvidenceSourceRole:
+    normalized_type = source_type.strip().lower()
+    firsthand = bool(FIRSTHAND_MARKERS.search(text))
+    procedural = bool(PROCEDURAL_MARKERS.search(text))
+    if normalized_type in OFFICIAL_SOURCE_TYPES:
+        return EvidenceSourceRole.OFFICIAL_PROCESS
+    if firsthand:
+        return EvidenceSourceRole.FIRSTHAND_BEHAVIOR
+    if procedural:
+        return EvidenceSourceRole.PROCEDURAL_GUIDE
+    if normalized_type in SECONDARY_SOURCE_TYPES:
+        return EvidenceSourceRole.SECONDARY_REPORT
+    return EvidenceSourceRole.UNCLASSIFIED
+
+
+def _grade(text: str, source_role: EvidenceSourceRole) -> EvidenceGrade:
+    if source_role != EvidenceSourceRole.FIRSTHAND_BEHAVIOR:
+        return EvidenceGrade.D
     if PAYMENT_TERMS.search(text):
         return EvidenceGrade.A
     if BEHAVIOR_TERMS.search(text) and WORKAROUND_TERMS.search(text):

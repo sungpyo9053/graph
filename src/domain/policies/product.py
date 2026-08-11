@@ -38,6 +38,14 @@ def evaluate_product_testability(
         return ProductGateDecision("REJECT", "fewer than two independent behavior originals")
     if not wedge.problem_relevance:
         return ProductGateDecision("REJECT", "wedge is unrelated to the evidenced problem")
+    if wedge.behavior_displacement == "NO_DISPLACEMENT" or (
+        wedge.external_form_reentry_required is True
+        and (wedge.expected_steps_removed or 0) == 0
+    ):
+        return ProductGateDecision(
+            "REJECT",
+            "wedge does not remove or consolidate an evidenced workaround step",
+        )
     if risk == RiskLevel.BLOCKED:
         return ProductGateDecision(
             "REJECT", f"blocked safety or legal risk: {', '.join(risk_reasons)}"
@@ -54,6 +62,11 @@ def evaluate_product_testability(
         return ProductGateDecision(
             "HOLD", "required user input or experiment output is unavailable"
         )
+    unknowns = list(TESTABLE_UNKNOWNS)
+    if wedge.behavior_displacement == "UNKNOWN":
+        unknowns.append("whether the wedge removes a current workaround step is unknown")
+    if wedge.external_form_reentry_required is None:
+        unknowns.append("whether an incumbent form requires duplicate data entry is unknown")
     return ProductGateDecision(
-        "DESIGN_VALIDATION", "minimum testability contract passed"
+        "DESIGN_VALIDATION", "minimum testability contract passed", tuple(unknowns)
     )

@@ -1,7 +1,7 @@
 from collections.abc import Iterable
 from datetime import UTC, datetime
 
-from src.domain.models.schemas import Evidence, EvidenceGrade, Signal
+from src.domain.models.schemas import Evidence, EvidenceGrade, EvidenceSourceRole, Signal
 
 QUALIFYING_GRADES = {EvidenceGrade.A, EvidenceGrade.B, EvidenceGrade.C}
 
@@ -48,13 +48,19 @@ def evidence_from_signal(
         independence_key=independence_key(signal),
         freshness_score=freshness_score(signal.published_at),
         is_fixture=signal.is_fixture,
+        source_role=EvidenceSourceRole.FIRSTHAND_BEHAVIOR,
+        behavior_claim_verified=True,
     )
 
 
 def independent_qualifying_evidence(items: Iterable[Evidence]) -> list[Evidence]:
     selected: dict[str, Evidence] = {}
     for item in items:
-        if item.grade not in QUALIFYING_GRADES:
+        if (
+            item.grade not in QUALIFYING_GRADES
+            or item.source_role != EvidenceSourceRole.FIRSTHAND_BEHAVIOR
+            or not item.behavior_claim_verified
+        ):
             continue
         previous = selected.get(item.independence_key)
         if previous is None or item.grade < previous.grade:
