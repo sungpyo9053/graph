@@ -43,4 +43,9 @@ jobs:
             cat mypy-output.txt
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
+          if [ "$status" -ne 0 ]; then
+            while IFS= read -r line; do
+              echo "::error title=mypy::$line"
+            done < mypy-output.txt
+          fi
           exit "$status"
