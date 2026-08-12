@@ -122,16 +122,24 @@ SNS도 예외가 아닙니다. 로그인·paywall·차단을 우회하지 않고
 ## 결과 조회 UI/API
 
 ```bash
-.venv/bin/uvicorn src.main:app --reload
+LLM_PROVIDER=codex .venv/bin/uvicorn src.main:app --reload
 ```
 
-브라우저에서 `http://127.0.0.1:8000`을 엽니다. UI는 저장된 결과와 실행 경로만 조회하며 검색이나 외부 행동을 자동 실행하지 않습니다.
+브라우저에서 `http://127.0.0.1:8000`을 엽니다. 보드의 **아이디어 찾기**
+버튼은 운영자가 명시적으로 누를 때만 저장소의 결론 힌트 없는
+`verified-urls.json` 원문을 다시 GET하고 discovery 그래프를 백그라운드로 한 번
+실행합니다. 동시에 한 작업만 실행하며 상태를 polling한 뒤 완료된 결과로
+이동합니다. `LLM_PROVIDER=fake`에서는 실제 결과처럼 보이는 실행을 만들지 않고
+요청을 거부합니다. 이는 새로운 URL을 검색하는 버튼이 아니라, 이미 검증된 URL
+입력을 그래프에 투입하는 무료 실행 경로입니다.
 
 - `GET /api/v1/discoveries`
 - `GET /api/v1/discoveries/{run_id}`
 - `GET /api/v1/runs/{run_id}/graph`
 - `GET /api/v1/reports/{run_id}`
 - `GET /api/v1/health`
+- `POST /api/v1/discovery-jobs`
+- `GET /api/v1/discovery-jobs/{job_id}`
 
 ## 테스트
 

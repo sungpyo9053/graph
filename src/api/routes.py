@@ -8,8 +8,9 @@ from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from pydantic import ValidationError
 
-from src.config import settings
+from src.config import ROOT, settings
 from src.domain.models.discovery import DiscoveryPortfolio
+from src.services.discovery.jobs import DiscoveryJob, discovery_job_manager
 
 api = APIRouter(prefix="/api/v1")
 ui = APIRouter()
@@ -101,9 +102,32 @@ def health() -> dict:
     }
 
 
+@api.post("/discovery-jobs", response_model=DiscoveryJob, status_code=202)
+async def start_discovery_job() -> DiscoveryJob:
+    try:
+        return discovery_job_manager.start_verified_urls(
+            ROOT / "verified-urls.json",
+            settings(),
+        )
+    except ValueError as exc:
+        raise HTTPException(409, str(exc)) from exc
+
+
+@api.get("/discovery-jobs/{job_id}", response_model=DiscoveryJob)
+def get_discovery_job(job_id: str) -> DiscoveryJob:
+    job = discovery_job_manager.get(job_id)
+    if job is None:
+        raise HTTPException(404, "discovery job not found")
+    return job
+
+
 @ui.get("/", response_class=HTMLResponse)
 def board(request: Request) -> HTMLResponse:
-    return templates.TemplateResponse(request, "board.html", {"runs": _list_portfolios()})
+    return templates.TemplateResponse(
+        request,
+        "board.html",
+        {"runs": _list_portfolios(), "llm_provider": settings().llm_provider},
+    )
 
 
 @ui.get("/discoveries/{run_id}", response_class=HTMLResponse)
