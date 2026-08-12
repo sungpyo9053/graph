@@ -32,4 +32,15 @@ jobs:
         run: python -m ruff check .
       - name: Typecheck
         if: always()
-        run: python -m mypy src
+        shell: bash
+        run: |
+          set +e
+          python -m mypy src 2>&1 | tee mypy-output.txt
+          status=${PIPESTATUS[0]}
+          {
+            echo '### mypy output'
+            echo '```text'
+            cat mypy-output.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit "$status"
