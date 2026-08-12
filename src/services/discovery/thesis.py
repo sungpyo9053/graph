@@ -101,7 +101,11 @@ def build_thesis(
     )
     return ProblemWedgeExpansionThesis(
         discovery_lane=cluster.lane,
-        idea_name=f"{cluster.theme.replace('_', ' ').replace(':', ' / ')} wedge",
+        idea_name=(
+            f"{wedge.expected_output[:56].rstrip()} 실험"
+            if cluster.lane != DiscoveryLane.PROBLEM_SOLVER
+            else f"{cluster.persona[:24]} {wedge.expected_output[:36].rstrip()}"
+        ),
         one_line_thesis=(
             f"{cluster.persona} repeats an existing behavior; test {wedge.expected_output} as a new visible meaning."
             if cluster.lane != DiscoveryLane.PROBLEM_SOLVER
@@ -193,12 +197,10 @@ def classify_candidate_verdict(
             and wedge.data_access_feasible
             and wedge.repeat_trigger.strip().lower() != "unknown"
             and wedge.social_loop.strip().lower() != "unknown"
-            and wedge.network_amplification is True
         ):
             return FinalVerdict.VALIDATE_DELIGHT
         if (
-            wedge.validation_cost_usd is not None
-            and wedge.validation_cost_usd <= 300
+            validation.estimated_cost_usd <= 300
             and validation.duration_days <= 14
             and wedge.manual_validation_feasible
         ):
@@ -206,8 +208,7 @@ def classify_candidate_verdict(
         return FinalVerdict.HOLD
     if lane == DiscoveryLane.WILD_BET:
         if (
-            wedge.validation_cost_usd is not None
-            and wedge.validation_cost_usd <= 300
+            validation.estimated_cost_usd <= 300
             and validation.duration_days <= 14
             and wedge.manual_validation_feasible
             and wedge.solo_first_user_value

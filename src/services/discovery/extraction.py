@@ -154,12 +154,26 @@ def extract_observations(
 
 def _behavior_excerpt(text: str) -> str | None:
     sentences = re.split(r"(?<=[.!?])\s+|\n+", text)
+    candidates: list[tuple[int, int, str]] = []
     for index, sentence in enumerate(sentences):
-        if BEHAVIOR_TERMS.search(sentence):
-            start = max(0, index - 1)
-            end = min(len(sentences), index + 2)
-            return " ".join(sentences[start:end])[:900]
-    return None
+        if not BEHAVIOR_TERMS.search(sentence):
+            continue
+        start = max(0, index - 1)
+        end = min(len(sentences), index + 2)
+        excerpt = " ".join(sentences[start:end])[:900]
+        score = 1
+        score += 12 if FIRSTHAND_MARKERS.search(excerpt) else 0
+        score += 6 if FREQUENCY.search(excerpt) else 0
+        score += min(4, len(BEHAVIOR_TERMS.findall(excerpt)))
+        score += 2 if WORKAROUND_TERMS.search(excerpt) else 0
+        if PROCEDURAL_MARKERS.search(excerpt) and not FIRSTHAND_MARKERS.search(excerpt):
+            score -= 8
+        # Prefer richer first-person passages over navigation/title fragments on pages
+        # whose HTML has been flattened to one line.
+        candidates.append((score, len(excerpt), excerpt))
+    if not candidates:
+        return None
+    return max(candidates, key=lambda item: (item[0], item[1]))[2]
 
 
 def classify_source_role(source_type: str, text: str) -> EvidenceSourceRole:

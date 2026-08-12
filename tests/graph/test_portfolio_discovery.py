@@ -268,6 +268,17 @@ async def test_configured_codex_provider_is_reported_even_when_gate_prevents_all
 
 
 @pytest.mark.asyncio
+async def test_generated_idea_name_comes_from_wedge_not_internal_query_theme() -> None:
+    portfolio = await PortfolioDiscoveryGraph(
+        FixtureDiscoveryCollector(), allow_test_fixture=True
+    ).run(DiscoveryRequest(mode=DiscoveryMode.OPEN))
+
+    assert portfolio.candidates
+    assert "raw-query" not in portfolio.candidates[0].thesis.idea_name
+    assert portfolio.candidates[0].thesis.wedge_statement[:24] in portfolio.candidates[0].thesis.idea_name
+
+
+@pytest.mark.asyncio
 async def test_final_selection_blocks_same_behavior_and_solution_archetype() -> None:
     portfolio = await PortfolioDiscoveryGraph(
         FixtureDiscoveryCollector(), allow_test_fixture=True

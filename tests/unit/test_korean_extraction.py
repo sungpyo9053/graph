@@ -100,3 +100,24 @@ def test_korean_word_fragment_does_not_fake_first_person_evidence() -> None:
 
     assert observations == []
     assert sum(exclusions.values()) == 1
+
+
+def test_extractor_prefers_firsthand_behavior_over_early_title_match() -> None:
+    query = SearchQuery(
+        query="매일 걷기 달리기 기록 공유 습관 후기",
+        theme="movement-ritual",
+        lane="BEHAVIOR_REDESIGN",
+    )
+    document = _document(
+        "매일 달리기 실제 후기. 메뉴와 사이트 소개입니다. "
+        "저는 여행 이후 매일 아침 30분씩 달리기 시작했습니다. "
+        "두 주 동안 기록을 남기고 친구에게 공유했습니다.",
+        suffix="late-firsthand",
+    )
+    document.search_result.query = query.query
+
+    observations, exclusions = extract_observations([document], [query])
+
+    assert exclusions == {}
+    assert len(observations) == 1
+    assert "저는 여행 이후" in observations[0].repeated_behavior

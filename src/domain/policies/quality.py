@@ -343,11 +343,11 @@ def final_verify(state: dict[str, Any], contract: DiscoveryContract) -> Verifica
                     )
                     and wedge.repeat_trigger.strip().lower() != "unknown"
                     and wedge.social_loop.strip().lower() != "unknown"
-                    and wedge.network_amplification is True
                 ),
                 reason=(
                     "behavior redesign needs an immediate visible result, repeat trigger, "
-                    "ten-second demonstrability, solo value, and network amplification"
+                    "ten-second demonstrability, solo value, and a designed social loop; "
+                    "network amplification remains a validation hypothesis"
                 ),
             ),
             VerificationCheck(
@@ -358,8 +358,7 @@ def final_verify(state: dict[str, Any], contract: DiscoveryContract) -> Verifica
                     and validation
                     and validation.duration_days
                     <= contract.maximum_wild_bet_duration_days
-                    and wedge.validation_cost_usd is not None
-                    and wedge.validation_cost_usd
+                    and validation.estimated_cost_usd
                     <= contract.maximum_wild_bet_cost_usd
                 ),
                 reason="wild bet must be testable within the configured duration and cost",

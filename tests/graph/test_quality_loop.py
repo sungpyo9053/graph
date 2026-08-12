@@ -357,7 +357,7 @@ def test_behavior_redesign_gate_does_not_require_pain_or_workaround_displacement
     assert verified.passed is True
 
 
-def test_wild_bet_allows_one_behavior_source_only_when_test_is_cheap_and_bounded() -> None:
+def test_wild_bet_uses_validation_plan_cost_for_cheap_bounded_gate() -> None:
     state = _state()
     evidence = state["cluster"].independent_evidence[:1]
     state["cluster"] = state["cluster"].model_copy(
@@ -368,17 +368,38 @@ def test_wild_bet_allows_one_behavior_source_only_when_test_is_cheap_and_bounded
         }
     )
     state["selected_wedge"] = state["selected_wedge"].model_copy(
-        update={"validation_cost_usd": 100}
+        update={"validation_cost_usd": None}
     )
 
     assert evaluate_evidence_gate(state, DiscoveryContract()).passed is True
     assert final_verify(state, DiscoveryContract()).passed is True
 
-    expensive = state["selected_wedge"].model_copy(
-        update={"validation_cost_usd": 500}
+    state["validation_plan"] = state["validation_plan"].model_copy(
+        update={"estimated_cost_usd": 500}
     )
-    state["selected_wedge"] = expensive
     assert final_verify(state, DiscoveryContract()).passed is False
+
+
+def test_delight_network_amplification_unknown_is_validation_hypothesis_not_hold() -> None:
+    state = _state()
+    state["cluster"] = state["cluster"].model_copy(
+        update={"lane": DiscoveryLane.BEHAVIOR_REDESIGN}
+    )
+    state["selected_wedge"] = state["selected_wedge"].model_copy(
+        update={
+            "instant_visible_result": True,
+            "ten_second_demo": True,
+            "repeat_trigger": "each completed ritual adds a visible tile",
+            "social_loop": "friends can compare selected tiles",
+            "network_amplification": False,
+        }
+    )
+
+    product = evaluate_product_testability(state["cluster"], state["selected_wedge"])
+    verified = final_verify(state, DiscoveryContract())
+
+    assert "whether additional participants amplify the delight loop" in product.unknowns
+    assert verified.passed is True
 
 
 def test_delight_arbitration_does_not_require_pain_displacement_or_verified_expansion() -> None:

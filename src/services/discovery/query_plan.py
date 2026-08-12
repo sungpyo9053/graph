@@ -25,13 +25,27 @@ OPEN_BEHAVIOR_QUERIES = [
 
 def infer_lane_from_query(query: str) -> DiscoveryLane:
     lowered = query.lower()
-    if any(term in lowered for term in ("이상한", "기묘", "odd", "wild bet")):
+    if any(term in lowered for term in ("이상", "기묘", "odd", "wild bet")):
         return DiscoveryLane.WILD_BET
     delight_terms = ("인증", "수집", "챌린지", "공유", "기록", "습관", "ritual")
-    pain_terms = ("불편", "손실", "우회", "문제", "분쟁", "수작업", "일일이")
-    if any(term in lowered for term in delight_terms) and not any(
-        term in lowered for term in pain_terms
-    ):
+    problem_terms = (
+        "불편",
+        "손실",
+        "우회",
+        "문제",
+        "분쟁",
+        "수작업",
+        "일일이",
+        "견적",
+        "영수증",
+        "수리 요청",
+        "카톡 메모",
+        "엑셀",
+        "비교",
+    )
+    if any(term in lowered for term in problem_terms):
+        return DiscoveryLane.PROBLEM_SOLVER
+    if any(term in lowered for term in delight_terms):
         return DiscoveryLane.BEHAVIOR_REDESIGN
     return DiscoveryLane.PROBLEM_SOLVER
 
