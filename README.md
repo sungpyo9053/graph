@@ -35,6 +35,8 @@ LLM_PROVIDER=codex CODEX_MAX_CONCURRENCY=1 \
 
 최종 판정은 `VALIDATE_PROBLEM`, `VALIDATE_DELIGHT`, `WILD_BET`, `HOLD`, `REJECT`입니다. 앞의 세 판정은 성공 예측이나 검증 완료가 아니라 각각 불편 제거 실험, 재미·공유·반복 루프 실험, 저비용 고분산 실험을 실행할 가치가 있다는 뜻입니다. HOLD는 현재 데이터 접근 불가, 최초 가치의 외부 공급 의존, 치명적 위험 또는 비수렴에 사용합니다.
 
+`VALIDATE_DELIGHT`의 7일 실험은 “두 명이 한 번 재생성 또는 공유”로 통과하지 않습니다. 10명 중 4명의 5/7일 사용, 3명의 다음 주 지속 요청, 2명의 요청 없는 결과 카드 공유, 공유를 통한 실제 유입, 다음 결과에 대한 호기심이 재사용 이유인지 확인하는 조건을 분리해서 기록합니다.
+
 LLM 사용량은 단계적으로 제한합니다. 코드가 원문 행동 추출·중복 제거·근거 Gate를 수행하고, 근거순 상위 문제군 최대 10개만 Root/Market/Wedge 분석을 거칩니다. 그중 코드 예비 순위와 다양성 Gate 상위 5개만 Validation/Cold Critique로 이동하며, Cold를 통과한 후보만 Exit Challenger를 호출합니다.
 
 ## 설치

@@ -414,15 +414,23 @@ def contrarian_objection(
 def design_validation(cluster: ProblemCluster) -> ValidationPlan:
     if cluster.lane == DiscoveryLane.BEHAVIOR_REDESIGN:
         return ValidationPlan(
-            hypothesis="the visible reinterpretation makes users voluntarily repeat or share an existing behavior",
+            hypothesis="the visible reinterpretation creates sustained curiosity-driven use, unsolicited sharing, and attributable social acquisition rather than one-time novelty",
             target_user=f"10 people already performing: {cluster.persona}",
-            method="show a ten-second clickable or video prototype, then run a seven-day manual replay test",
+            method="run a seven-day manual prototype diary for 10 existing practitioners; record daily use, next-week continuation requests, unsolicited result-card shares, referred arrivals, and each return reason",
             duration_days=7,
-            success_criterion="at least 3 of 10 understand it immediately and at least 2 voluntarily replay or share",
-            failure_criterion="fewer than 2 voluntarily replay or share without reminders",
+            success_criterion="4 of 10 use it on at least 5 of 7 days; at least 3 request continued use next week; at least 2 share a result card without prompting; at least one recipient enters; return interviews confirm curiosity about the next result",
+            failure_criterion="any core loop fails: fewer than 4 use it for 5 days, fewer than 3 request next-week use, fewer than 2 unsolicited shares, no referred arrival, or returns are explained only by reminders/novelty",
             estimated_cost_usd=100,
             next_action_if_pass="test whether social participation amplifies an already useful solo loop",
             next_action_if_fail="discard the reframe without changing the underlying behavior evidence",
+            cohort_size=10,
+            observation_days=7,
+            minimum_consistent_users=4,
+            minimum_active_days=5,
+            minimum_next_week_requests=3,
+            minimum_unsolicited_shares=2,
+            require_referred_user_arrival=True,
+            require_curiosity_driven_return_check=True,
         )
     if cluster.lane == DiscoveryLane.WILD_BET:
         return ValidationPlan(

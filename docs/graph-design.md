@@ -175,6 +175,12 @@ flowchart TD
 
 `DiscoveryContract`는 시작 시 레인별 독립 근거 수, 원문 GET, 문제 해결형의 우회 행동, 행동 재설계형의 즉시 결과·반복 동기·10초 전달성, Wild Bet의 14일·저비용 한도, fixture/결론 힌트 금지와 반복 상한을 고정한다. `cold_critique`와 `exit_challenger`는 각각 새 read-only Codex 프로세스로 실행한다.
 
+행동 재설계형 Validation Contract는 단순 첫 반응을 통과시키지 않는다. 고정된
+기준은 `10명 cohort`, `7일 관찰`, `4명 이상이 5일 이상 사용`, `3명 이상 다음 주
+계속 사용 요청`, `2명 이상 자발적 결과 공유`, `공유 유입 발생`, `다음 결과에 대한
+호기심이 재사용 이유인지 확인`이다. 이 구조화 필드가 빠지면 Validation Gate와
+Final Verify가 모두 HOLD한다.
+
 `REPORT_COMPLETE`는 그래프 실행/보고서 작성의 성공 상태다. 아이디어 판정은 `VALIDATE_PROBLEM`, `VALIDATE_DELIGHT`, `WILD_BET`, `HOLD`, `REJECT`다. 앞의 세 상태는 성공 판정이 아니라 서로 다른 실험 대상으로 승인했다는 뜻이다. 행동 재설계형에서 고통 미제거, 자산·확장 미검증은 자동 차단 사유가 아니다.
 
 수정은 category별 정확한 노드로 돌아간 후 항상 `evidence_gate`부터 재검증한다. critique/revision은 각각 최대 3회이고, 동일 BLOCKING category가 두 번 나오거나 fingerprint가 변하지 않으면 HOLD한다. Thesis는 `final_verify`와 `exit_challenger`를 모두 통과한 후보에만 작성한다.

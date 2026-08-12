@@ -32,6 +32,7 @@ from src.domain.policies.quality import (
 from src.graphs.quality.graph import build_quality_graph
 from src.graphs.state import CandidateGraphState
 from src.llm.client import DeterministicFakeLLM
+from src.services.discovery.thesis import design_validation
 from tests.fixture_collector import FixtureDiscoveryCollector
 
 
@@ -303,7 +304,6 @@ def test_final_verify_blocks_known_no_displacement() -> None:
             "external_form_reentry_required": True,
         }
     )
-
     result = final_verify(state, DiscoveryContract())
 
     assert result.passed is False
@@ -347,6 +347,7 @@ def test_behavior_redesign_gate_does_not_require_pain_or_workaround_displacement
             "network_amplification": True,
         }
     )
+    state["validation_plan"] = design_validation(state["cluster"])
 
     gate = evaluate_evidence_gate(state, DiscoveryContract())
     product = evaluate_product_testability(state["cluster"], state["selected_wedge"])
@@ -394,6 +395,7 @@ def test_delight_network_amplification_unknown_is_validation_hypothesis_not_hold
             "network_amplification": False,
         }
     )
+    state["validation_plan"] = design_validation(state["cluster"])
 
     product = evaluate_product_testability(state["cluster"], state["selected_wedge"])
     verified = final_verify(state, DiscoveryContract())

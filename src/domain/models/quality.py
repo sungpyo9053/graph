@@ -125,6 +125,14 @@ class DiscoveryContract(BaseModel):
     require_feasible_data_access: bool = True
     require_visible_result_for_delight: bool = True
     require_ten_second_demo_for_delight: bool = True
+    delight_validation_cohort_size: int = 10
+    delight_validation_observation_days: int = 7
+    delight_validation_minimum_consistent_users: int = 4
+    delight_validation_minimum_active_days: int = 5
+    delight_validation_minimum_next_week_requests: int = 3
+    delight_validation_minimum_unsolicited_shares: int = 2
+    delight_validation_requires_referred_arrival: bool = True
+    delight_validation_requires_curiosity_return_check: bool = True
     maximum_wild_bet_duration_days: int = 14
     maximum_wild_bet_cost_usd: float = 300
     max_critique_rounds: int = 3

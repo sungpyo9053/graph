@@ -9,3 +9,12 @@ thesis_gate:
 validation_gate:
   maximum_duration_days: 14
   required_fields: [hypothesis, target_user, method, duration_days, success_criterion, failure_criterion, estimated_cost_usd, next_action_if_pass, next_action_if_fail]
+  behavior_redesign:
+    cohort_size: 10
+    observation_days: 7
+    minimum_consistent_users: 4
+    minimum_active_days: 5
+    minimum_next_week_requests: 3
+    minimum_unsolicited_shares: 2
+    require_referred_user_arrival: true
+    require_curiosity_driven_return_check: true

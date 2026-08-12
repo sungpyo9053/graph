@@ -16,6 +16,7 @@ from src.domain.models.quality import (
     VerificationResult,
 )
 from src.domain.policies.evidence import independent_qualifying_evidence
+from src.domain.policies.validation import delight_validation_contract_failures
 
 REVISION_ROUTE = {
     CritiqueCategory.WEAK_EVIDENCE: "collect_more",
@@ -348,6 +349,15 @@ def final_verify(state: dict[str, Any], contract: DiscoveryContract) -> Verifica
                     "behavior redesign needs an immediate visible result, repeat trigger, "
                     "ten-second demonstrability, solo value, and a designed social loop; "
                     "network amplification remains a validation hypothesis"
+                ),
+            ),
+            VerificationCheck(
+                name="delight_longitudinal_validation_contract",
+                passed=lane != DiscoveryLane.BEHAVIOR_REDESIGN
+                or not delight_validation_contract_failures(validation, contract),
+                reason=(
+                    "delight validation must distinguish novelty from 5-of-7-day retention, "
+                    "next-week demand, unsolicited sharing, referred arrival, and curiosity-driven return"
                 ),
             ),
             VerificationCheck(

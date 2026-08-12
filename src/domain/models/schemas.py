@@ -201,6 +201,14 @@ class ValidationPlan(BaseModel):
     estimated_cost_usd: float = Field(ge=0)
     next_action_if_pass: str
     next_action_if_fail: str
+    cohort_size: int | None = Field(default=None, ge=1)
+    observation_days: int | None = Field(default=None, ge=1)
+    minimum_consistent_users: int | None = Field(default=None, ge=1)
+    minimum_active_days: int | None = Field(default=None, ge=1)
+    minimum_next_week_requests: int | None = Field(default=None, ge=1)
+    minimum_unsolicited_shares: int | None = Field(default=None, ge=1)
+    require_referred_user_arrival: bool = False
+    require_curiosity_driven_return_check: bool = False
 
 
 class RetryCounts(BaseModel):

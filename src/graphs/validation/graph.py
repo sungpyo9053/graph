@@ -7,6 +7,9 @@ from typing import Any
 from langgraph.graph import END, START, StateGraph
 
 from src.agents.atomic import design_validation_node, trace
+from src.domain.models.discovery import DiscoveryLane
+from src.domain.models.quality import DiscoveryContract
+from src.domain.policies.validation import delight_validation_contract_failures
 from src.graphs.state import CandidateGraphState
 from src.llm.client import LLMClient
 
@@ -24,8 +27,20 @@ def build_validation_graph(llm: LLMClient) -> Any:
     def review(state: CandidateGraphState) -> dict:
         started, clock = datetime.now(UTC), perf_counter()
         plan = state["validation_plan"]
-        route = "APPROVE" if plan.duration_days <= 14 else "HOLD"
-        reason = "code validation contract passed" if route == "APPROVE" else "validation exceeds 14 days"
+        failures = (
+            delight_validation_contract_failures(
+                plan, state.get("discovery_contract", DiscoveryContract())
+            )
+            if state["cluster"].lane == DiscoveryLane.BEHAVIOR_REDESIGN
+            else []
+        )
+        route = "APPROVE" if plan.duration_days <= 14 and not failures else "HOLD"
+        reason = (
+            "code validation contract passed"
+            if route == "APPROVE"
+            else "validation contract failed: "
+            + ", ".join(failures or ["duration_exceeded"])
+        )
         return {
             "validation_route": route,
             "trace": [
