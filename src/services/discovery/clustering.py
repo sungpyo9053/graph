@@ -109,8 +109,7 @@ def behavior_cluster_compatible(
     """Require shared behavioral meaning, not just a shared verb such as 'record'."""
     left_text = f"{left.repeated_behavior} {left.workaround}"
     right_text = f"{right.repeated_behavior} {right.workaround}"
-    if jaccard(left_text, right_text) >= 0.62:
-        return True
+    surface_similarity = jaccard(left_text, right_text)
 
     motivation_overlap = bool(set(left.motivations) & set(right.motivations))
     target_overlap = bool(set(left.target_objects) & set(right.target_objects))
@@ -124,6 +123,16 @@ def behavior_cluster_compatible(
     # photo, posting, or recording every day.
     if left.target_objects and right.target_objects and not target_overlap:
         return False
+
+    # Surface similarity is supporting evidence only. It must never bypass
+    # concrete target/motivation conflicts or manufacture identity when the
+    # semantic facets are unknown.
+    if surface_similarity >= 0.62:
+        if left.target_objects or right.target_objects:
+            return target_overlap and (
+                motivation_overlap or reward_overlap or specific_trigger_overlap
+            )
+        return motivation_overlap and (reward_overlap or specific_trigger_overlap)
 
     # Unknown facets never justify a merge. With known facets, target identity
     # plus at least one matching motivation, reward, or trigger is required.

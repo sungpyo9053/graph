@@ -125,6 +125,9 @@ SNS도 예외가 아닙니다. 로그인·paywall·차단을 우회하지 않고
 관찰하는 PySide6 UI를 제공합니다. 문서용 그림을 재생하는 것이 아니라 기존
 `PortfolioDiscoveryGraph`를 worker thread에서 실행하고, 코드 노드와 Codex
 heartbeat가 내보낸 이벤트로 노드와 edge를 갱신합니다.
+표시할 노드와 edge도 별도 목록에서 복사하지 않습니다. 앱 시작 시 실제
+Portfolio/Social/Candidate/Problem/Product/Validation/Quality LangGraph를 compile한
+뒤 `get_graph()` 결과에서 직접 추출하며, conditional edge는 점선으로 표시합니다.
 
 ```bash
 .venv/bin/pip install -e '.[gui]'
@@ -187,6 +190,9 @@ make test
 make lint
 make typecheck
 ```
+
+같은 검사는 `.github/workflows/ci.yml`에서 `main`, `agent/**` push와 PR마다
+Python 3.12 및 Qt offscreen 환경으로 실행됩니다.
 
 테스트 fixture는 `tests/fixtures/`와 `tests/fixture_collector.py`에만 있습니다. production graph는 fixture collector를 거부하고, 테스트가 `allow_test_fixture=True`를 명시한 경우에만 허용합니다. 인터넷과 API 키 없이도 어댑터 HTTP 계약, 원문/snippet 분리, 근거 gate, 미충원, 결정성, 결과 API를 검증합니다.
 

@@ -39,13 +39,13 @@ def test_native_window_renders_graph_and_animates_runtime_edge() -> None:
             }
         )
         app.processEvents()
-        assert window.nodes["plan_queries"].state == "COMPLETED"
-        assert window.nodes["collect_behavior_sources"].state == "RUNNING"
+        assert window.nodes["portfolio:plan_queries"].state == "COMPLETED"
+        assert window.nodes["portfolio:collect_behavior_sources"].state == "RUNNING"
         edge = next(
             item
             for item in window.edges
-            if item.spec.source == "plan_queries"
-            and item.spec.target == "collect_behavior_sources"
+            if item.spec.source == "portfolio:plan_queries"
+            and item.spec.target == "portfolio:collect_behavior_sources"
         )
         assert edge.pen().widthF() == pytest.approx(3.2)
         assert "internal detail" not in " ".join(

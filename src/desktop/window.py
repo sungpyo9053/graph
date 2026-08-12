@@ -155,6 +155,10 @@ class GraphEdgeItem(QGraphicsPathItem):
         self._idle_pen = QPen(QColor("#46566d"), 1.4)
         self._active_pen = QPen(QColor("#50b7ff"), 3.2)
         self._loop_pen = QPen(QColor("#ee8b35"), 3.2)
+        if spec.conditional:
+            self._idle_pen.setStyle(Qt.PenStyle.DashLine)
+            self._active_pen.setStyle(Qt.PenStyle.DashLine)
+            self._loop_pen.setStyle(Qt.PenStyle.DashLine)
         self.setPen(self._idle_pen)
         self.arrow = QGraphicsPolygonItem(self)
         self.arrow.setBrush(QBrush(QColor("#46566d")))
@@ -366,9 +370,9 @@ class MainWindow(QMainWindow):
 
     def handle_runtime_event(self, event: dict[str, Any]) -> None:
         raw_node = str(event.get("node", "unknown"))
-        node = normalize_runtime_node(raw_node)
         status = str(event.get("status", "RUNNING")).upper()
         candidate = str(event.get("candidate_id", "unknown"))
+        node = normalize_runtime_node(raw_node, candidate)
         run_id = str(event.get("run_id", "unknown"))
         invocation = str(event.get("invocation_id", "-"))
         elapsed = float(event.get("elapsed_seconds", 0.0) or 0.0)

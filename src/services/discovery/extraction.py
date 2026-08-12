@@ -73,7 +73,7 @@ BEHAVIOR_FACET_PATTERNS: dict[str, tuple[tuple[str, str], ...]] = {
         (r"competitor|경쟁.{0,10}(?:가격|재고)|가격.{0,10}품절", "competitive_monitoring"),
     ),
     "target_objects": (
-        (r"감사|고맙|선물받|얻어먹|밥|빵", "gratitude_moment"),
+        (r"감사|고맙|선물받|얻어먹", "gratitude_moment"),
         (r"하늘|구름|풍경|날씨|꽃", "sky_or_nature"),
         (r"그림|그리기|작품", "creative_work"),
         (r"가족|부모|아이", "family_daily_life"),

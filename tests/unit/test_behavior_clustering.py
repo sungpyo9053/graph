@@ -115,3 +115,28 @@ def test_daily_surface_trigger_alone_never_causes_a_merge() -> None:
 
     assert set(gratitude.repeat_triggers) & set(sky.repeat_triggers) == {"daily_routine"}
     assert behavior_cluster_compatible(gratitude, sky) is False
+
+
+def test_high_surface_similarity_never_bypasses_target_and_motivation_conflict() -> None:
+    gratitude = _observation(
+        1,
+        "저는 매일 사진을 찍고 게시판에 올려 기록했습니다 감사한 선물 사진입니다.",
+    )
+    bread = _observation(
+        2,
+        "저는 매일 사진을 찍고 게시판에 올려 기록했습니다 직접 구운 빵 사진입니다.",
+    )
+
+    assert set(gratitude.target_objects) == {"gratitude_moment"}
+    assert "gratitude_moment" not in bread.target_objects
+    assert behavior_cluster_compatible(gratitude, bread) is False
+
+
+def test_plain_meal_and_bread_are_not_inferred_as_gratitude() -> None:
+    meal = infer_behavior_facets("저는 매일 밥 사진을 찍어 식사 기록을 남겼어요.")
+    bread = infer_behavior_facets("나는 매주 직접 만든 빵 사진을 게시판에 올렸습니다.")
+
+    assert "gratitude" not in meal["motivations"]
+    assert "gratitude_moment" not in meal["target_objects"]
+    assert "gratitude" not in bread["motivations"]
+    assert "gratitude_moment" not in bread["target_objects"]

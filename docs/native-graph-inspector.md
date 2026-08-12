@@ -24,6 +24,13 @@ UI worker는 기존 `VerifiedUrlCollector`, `PublicPageFetcher`,
 그래프나 fake 결과 생성기는 없다. 실행은 한 번 시작해 종료되며 내부 무한
 스케줄러도 없다.
 
+화면 topology도 수동 `NODES`/`EDGES` 정의를 SSOT로 사용하지 않는다. 실제
+runtime builder들을 실행 없이 compile하고 각 `get_graph().nodes`와
+`get_graph().edges`에서 qualified display topology를 생성한다. topology 전용
+collector와 LLM은 호출되면 즉시 실패하므로 fixture나 fake 판단을 만들지 않는다.
+회귀 테스트는 각 compiled graph의 전체 node 집합과 `(source, target, route,
+conditional)` edge 집합이 GUI snapshot과 정확히 같은지 검사한다.
+
 ## 시각 상태
 
 - `IDLE`: 아직 방문하지 않은 노드
@@ -31,6 +38,8 @@ UI worker는 기존 `VerifiedUrlCollector`, `PublicPageFetcher`,
 - `COMPLETED`: 정상 종료
 - `REVISED`: 수정·재수집·재군집 경로를 선택한 노드
 - `FAILED`: 실패 또는 기각
+
+실선은 일반 edge, 점선은 compiled graph가 `conditional=True`로 보고한 edge다.
 
 노드 간 실제 관찰된 이동은 파란 edge, back-edge와 수정 이동은 주황 edge로
 강조한다. Candidate별 마지막 노드를 따로 기억하므로 fan-out된 후보 실행이
