@@ -4,7 +4,7 @@ from datetime import UTC, datetime
 from time import perf_counter
 from typing import Any
 
-from langgraph.graph import END, START, StateGraph
+from langgraph.graph import START, StateGraph
 
 from src.agents.atomic import (
     analyze_structural_gap_node,
@@ -15,10 +15,15 @@ from src.agents.atomic import (
     merge_evaluations,
     research_existing_alternatives,
     select_wedge,
+    simplify_wedge_candidate_node,
     trace,
 )
 from src.domain.models.schemas import unknown_score
-from src.domain.policies.product import evaluate_product_testability
+from src.domain.policies.product import (
+    can_attempt_wedge_simplification,
+    evaluate_product_testability,
+)
+from src.graphs.routes import PRODUCT_GATE_ROUTES
 from src.graphs.state import CandidateGraphState, DiscoveryCollector
 from src.llm.client import LLMClient
 from src.services.discovery.thesis import (
@@ -49,6 +54,15 @@ def build_product_graph(collector: DiscoveryCollector, llm: LLMClient) -> Any:
     async def wedges(state: CandidateGraphState) -> dict:
         return await design_wedge_candidates_node(
             state["cluster"], state["candidate_prefix"], llm
+        )
+
+    async def simplify_wedge(state: CandidateGraphState) -> dict:
+        return await simplify_wedge_candidate_node(
+            state["cluster"],
+            state["selected_wedge"],
+            state["candidate_prefix"],
+            llm,
+            int(state.get("wedge_retry_count", 0)),
         )
 
     def problem_strength(state: CandidateGraphState) -> dict:
@@ -113,8 +127,17 @@ def build_product_graph(collector: DiscoveryCollector, llm: LLMClient) -> Any:
         started, clock = datetime.now(UTC), perf_counter()
         wedge = state["selected_wedge"]
         decision = evaluate_product_testability(state["cluster"], wedge)
+        simplifiable, simplification_reason = can_attempt_wedge_simplification(
+            state["cluster"], wedge, int(state.get("wedge_retry_count", 0))
+        )
+        route = (
+            "REVISE_WEDGE"
+            if decision.route == "HOLD" and simplifiable
+            else decision.route
+        )
+        reason = simplification_reason if route == "REVISE_WEDGE" else decision.reason
         return {
-            "product_route": decision.route,
+            "product_route": route,
             "unknowns": list(decision.unknowns),
             "validation_hypotheses": list(decision.unknowns),
             "trace": [
@@ -122,9 +145,9 @@ def build_product_graph(collector: DiscoveryCollector, llm: LLMClient) -> Any:
                     f"{state['candidate_prefix']}:product_quality_gate",
                     started,
                     clock,
-                    decision.reason,
-                    actual_route=decision.route,
-                    route_reason=decision.reason,
+                    reason,
+                    actual_route=route,
+                    route_reason=reason,
                 )
             ],
         }
@@ -132,6 +155,7 @@ def build_product_graph(collector: DiscoveryCollector, llm: LLMClient) -> Any:
     builder.add_node("analyze_existing_alternatives", research)
     builder.add_node("analyze_structural_gap", gap)
     builder.add_node("design_wedge_candidates", wedges)
+    builder.add_node("simplify_wedge_to_one_input_one_output", simplify_wedge)
     evaluators = {
         "evaluate_problem_strength": problem_strength,
         "evaluate_repetition": repetition,
@@ -159,5 +183,14 @@ def build_product_graph(collector: DiscoveryCollector, llm: LLMClient) -> Any:
     builder.add_edge([*evaluators, "evaluate_expansion_potential"], "merge_evaluations")
     builder.add_edge("merge_evaluations", "select_wedge")
     builder.add_edge("select_wedge", "product_quality_gate")
-    builder.add_edge("product_quality_gate", END)
+    builder.add_conditional_edges(
+        "product_quality_gate",
+        lambda state: state.get("product_route", "HOLD"),
+        PRODUCT_GATE_ROUTES,
+    )
+    for name in evaluators:
+        builder.add_edge("simplify_wedge_to_one_input_one_output", name)
+    builder.add_edge(
+        "simplify_wedge_to_one_input_one_output", "evaluate_asset_accumulation"
+    )
     return builder.compile()

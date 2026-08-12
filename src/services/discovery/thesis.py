@@ -45,6 +45,7 @@ def build_thesis(
     strongest_objection_override: str | None = None,
     causal_gap_verified: bool = False,
     unknowns_override: list[str] | None = None,
+    verdict_override: FinalVerdict | None = None,
 ) -> ProblemWedgeExpansionThesis:
     observations = cluster.observations
     evidence = cluster.independent_evidence
@@ -68,7 +69,7 @@ def build_thesis(
         else evaluate_expansion_paths(cluster, assets)
     )
     validation = validation_override or design_validation(cluster)
-    verdict = classify_candidate_verdict(
+    verdict = verdict_override or classify_candidate_verdict(
         lane=cluster.lane,
         evidence_count=len(evidence),
         total_score=total,
@@ -414,12 +415,12 @@ def contrarian_objection(
 def design_validation(cluster: ProblemCluster) -> ValidationPlan:
     if cluster.lane == DiscoveryLane.BEHAVIOR_REDESIGN:
         return ValidationPlan(
-            hypothesis="the visible reinterpretation creates sustained curiosity-driven use, unsolicited sharing, and attributable social acquisition rather than one-time novelty",
+            hypothesis="after completing the first seven-day visible collection, at least one user starts a second cycle without reward or prompting because the next result is intrinsically interesting",
             target_user=f"10 people already performing: {cluster.persona}",
-            method="run a seven-day manual prototype diary for 10 existing practitioners; record daily use, next-week continuation requests, unsolicited result-card shares, referred arrivals, and each return reason",
+            method="accept one daily input from 10 existing practitioners and manually return one visible tile/card; record daily use, next-week requests, whether anyone actually starts an unrewarded second cycle, unsolicited shares, referred arrivals, and each return reason",
             duration_days=7,
-            success_criterion="4 of 10 use it on at least 5 of 7 days; at least 3 request continued use next week; at least 2 share a result card without prompting; at least one recipient enters; return interviews confirm curiosity about the next result",
-            failure_criterion="any core loop fails: fewer than 4 use it for 5 days, fewer than 3 request next-week use, fewer than 2 unsolicited shares, no referred arrival, or returns are explained only by reminders/novelty",
+            success_criterion="primary: at least one first-week completer actually starts a second seven-day collection without reward or prompting; diagnostics: 4 of 10 use it on 5 of 7 days, 3 request continued use, 2 share without prompting, and at least one recipient enters",
+            failure_criterion="no first-week completer starts a second cycle without reward, or interviews show returns were driven only by reminders/reward/novelty; separately report retention, sharing, and referral diagnostics without hiding them",
             estimated_cost_usd=100,
             next_action_if_pass="test whether social participation amplifies an already useful solo loop",
             next_action_if_fail="discard the reframe without changing the underlying behavior evidence",
@@ -429,6 +430,7 @@ def design_validation(cluster: ProblemCluster) -> ValidationPlan:
             minimum_active_days=5,
             minimum_next_week_requests=3,
             minimum_unsolicited_shares=2,
+            minimum_unrewarded_second_cycle_starts=1,
             require_referred_user_arrival=True,
             require_curiosity_driven_return_check=True,
         )

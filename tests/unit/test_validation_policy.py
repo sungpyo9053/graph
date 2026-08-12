@@ -20,6 +20,7 @@ def _plan(**updates: object) -> ValidationPlan:
         "minimum_active_days": 5,
         "minimum_next_week_requests": 3,
         "minimum_unsolicited_shares": 2,
+        "minimum_unrewarded_second_cycle_starts": 1,
         "require_referred_user_arrival": True,
         "require_curiosity_driven_return_check": True,
     }
@@ -51,3 +52,10 @@ def test_unsolicited_share_is_distinct_from_prompted_or_combined_replay_metric()
         _plan(minimum_unsolicited_shares=1), DiscoveryContract()
     )
     assert failures == ["unsolicited_shares"]
+
+
+def test_unrewarded_second_cycle_is_a_separate_primary_delight_metric() -> None:
+    failures = delight_validation_contract_failures(
+        _plan(minimum_unrewarded_second_cycle_starts=None), DiscoveryContract()
+    )
+    assert failures == ["unrewarded_second_cycle_start"]

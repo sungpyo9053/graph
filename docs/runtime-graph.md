@@ -72,6 +72,15 @@ flowchart TD
     E7 --> MERGE
     EX --> MERGE
     MERGE --> SEL[select_wedge] --> CR{product_quality_gate · code}
+    CR -- REVISE_WEDGE / once --> SIMPLIFY[simplify to one input · one output]
+    SIMPLIFY --> E1
+    SIMPLIFY --> E2
+    SIMPLIFY --> E3
+    SIMPLIFY --> E4
+    SIMPLIFY --> E5
+    SIMPLIFY --> E6
+    SIMPLIFY --> E7
+    SIMPLIFY --> EA
     CR -- DESIGN_VALIDATION/HOLD/REJECT --> PROD_END((END))
   end
 

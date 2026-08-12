@@ -131,6 +131,7 @@ class DiscoveryContract(BaseModel):
     delight_validation_minimum_active_days: int = 5
     delight_validation_minimum_next_week_requests: int = 3
     delight_validation_minimum_unsolicited_shares: int = 2
+    delight_validation_minimum_unrewarded_second_cycle_starts: int = 1
     delight_validation_requires_referred_arrival: bool = True
     delight_validation_requires_curiosity_return_check: bool = True
     maximum_wild_bet_duration_days: int = 14

@@ -20,6 +20,12 @@ CANDIDATE_PRODUCT_ROUTES: dict[Hashable, str] = {
     "REJECT": END,
     "HOLD": END,
 }
+PRODUCT_GATE_ROUTES: dict[Hashable, str] = {
+    "REVISE_WEDGE": "simplify_wedge_to_one_input_one_output",
+    "DESIGN_VALIDATION": END,
+    "HOLD": END,
+    "REJECT": END,
+}
 CANDIDATE_VALIDATION_ROUTES: dict[Hashable, str] = {
     "APPROVE": "quality_graph",
     "REVISE_WEDGE": "product_graph",
@@ -76,6 +82,7 @@ GRAPH_ROUTE_REGISTRY: dict[str, dict[Hashable, str]] = {
     "portfolio.review_problem_evidence": DISCOVERY_ROUTES,
     "candidate.problem_graph": CANDIDATE_PROBLEM_ROUTES,
     "candidate.product_graph": CANDIDATE_PRODUCT_ROUTES,
+    "product.product_quality_gate": PRODUCT_GATE_ROUTES,
     "candidate.validation_graph": CANDIDATE_VALIDATION_ROUTES,
     "finalization.validation_graph": FINALIZATION_VALIDATION_ROUTES,
     "candidate.quality_graph": CANDIDATE_QUALITY_ROUTES,

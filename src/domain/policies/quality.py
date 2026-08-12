@@ -198,11 +198,36 @@ def arbitrate_findings(
         elif (
             state["cluster"].lane != DiscoveryLane.PROBLEM_SOLVER
             and finding.category
-            in {CritiqueCategory.FAKE_ASSET, CritiqueCategory.UNSUPPORTED_EXPANSION}
+            in {
+                CritiqueCategory.FALSE_STRUCTURAL_GAP,
+                CritiqueCategory.FAKE_ASSET,
+                CritiqueCategory.UNSUPPORTED_EXPANSION,
+            }
         ):
             verdict = ArbitrationVerdict.NEEDS_MORE_EVIDENCE
             route = "validation_hypothesis"
-            reason = "asset and expansion are optional hypotheses for a delight or wild-bet validation"
+            reason = (
+                "structural gap, asset, and expansion are optional hypotheses for a delight "
+                "or wild-bet validation; they must remain unknown rather than become claims"
+            )
+        elif (
+            state["cluster"].lane != DiscoveryLane.PROBLEM_SOLVER
+            and finding.category == CritiqueCategory.WRONG_ROOT_PROBLEM
+        ):
+            verdict = ArbitrationVerdict.NEEDS_MORE_EVIDENCE
+            route = "validation_hypothesis"
+            reason = (
+                "the observed repeated behavior is code-verified; the proposed meaning or "
+                "behavior opportunity remains a validation hypothesis rather than a root-problem claim"
+            )
+        elif (
+            state["cluster"].lane != DiscoveryLane.PROBLEM_SOLVER
+            and finding.category == CritiqueCategory.WEAK_WEDGE
+            and "validation" in finding.affected_claim.lower()
+        ):
+            verdict = ArbitrationVerdict.NEEDS_MORE_EVIDENCE
+            route = "validation_hypothesis"
+            reason = "a critique of validation metrics must revise the hypothesis, not regenerate the wedge"
         elif (
             state["cluster"].lane == DiscoveryLane.BEHAVIOR_REDESIGN
             and finding.category == CritiqueCategory.NO_BEHAVIOR_CHANGE

@@ -22,6 +22,37 @@ class ProductGateDecision:
     unknowns: tuple[str, ...] = TESTABLE_UNKNOWNS
 
 
+def can_attempt_wedge_simplification(
+    cluster: ProblemCluster, wedge: WedgeCandidate, retry_count: int
+) -> tuple[bool, str]:
+    """Allow one bounded redesign when manual one-input/one-output value is plausible."""
+    minimum_evidence = 1 if cluster.lane == DiscoveryLane.WILD_BET else 2
+    has_input = bool(
+        wedge.user_input.strip()
+        and wedge.user_input.strip().lower() != "unknown"
+    )
+    failed_simplicity = (
+        wedge.complexity.strip().upper() != "LOW"
+        or not wedge.data_access_feasible
+        or not wedge.solo_first_user_value
+    )
+    allowed = (
+        retry_count < 1
+        and len(cluster.independent_evidence) >= minimum_evidence
+        and wedge.problem_relevance
+        and wedge.manual_validation_feasible
+        and has_input
+        and failed_simplicity
+    )
+    reason = (
+        "one bounded simplification is allowed because verified behavior and a user-provided "
+        "input can support a manual one-input/one-output test"
+        if allowed
+        else "wedge cannot be simplified safely within the single-retry contract"
+    )
+    return allowed, reason
+
+
 def evaluate_product_testability(
     cluster: ProblemCluster, wedge: WedgeCandidate
 ) -> ProductGateDecision:

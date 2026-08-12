@@ -142,12 +142,13 @@ class DeterministicFakeLLM:
                 "rationale": f"{count} alternatives are observed, but their causal failure mechanism is not directly verified.",
                 "confidence": 0.35 if count else 0.0,
             }
-        if task == "design_wedge_candidates":
+        if task in {"design_wedge_candidates", "simplify_wedge_candidate"}:
             persona = data["persona"]
+            simplifying = task == "simplify_wedge_candidate"
             return {
                 **common,
                 "candidates": [{
-                    "name": "single-case evidence result",
+                    "name": "single-input manual result" if simplifying else "single-case evidence result",
                     "approach_type": "single_case_decision",
                     "target_user": persona,
                     "buyer": "unknown",

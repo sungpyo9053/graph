@@ -57,6 +57,14 @@ def test_product_fan_out_fan_in_and_all_revision_back_edges_are_registered() -> 
     assert all(("design_wedge_candidates", node) in product_edges for node in evaluator_nodes)
     assert ("select_wedge", "product_quality_gate") in product_edges
     assert (
+        "product_quality_gate",
+        "simplify_wedge_to_one_input_one_output",
+    ) in product_edges
+    assert all(
+        ("simplify_wedge_to_one_input_one_output", node) in product_edges
+        for node in evaluator_nodes
+    )
+    assert (
         GRAPH_ROUTE_REGISTRY["quality.targeted_revision"]["evidence_gate"]
         == "evidence_gate"
     )

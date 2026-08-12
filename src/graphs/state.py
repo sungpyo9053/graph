@@ -143,6 +143,7 @@ class CandidateGraphState(TypedDict, total=False):
     kill_conditions: list[str]
     product_route: str
     wedge_retry_count: int
+    wedge_simplification_used: bool
     validation_plan: ValidationPlan
     validation_route: str
     validation_retry_count: int

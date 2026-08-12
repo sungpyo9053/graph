@@ -14,7 +14,7 @@ from src.agents.models import (
     WedgeDesignAnalysis,
 )
 from src.domain.models.discovery import DiscoveryLane, DiscoveryRequest, ProblemCluster
-from src.domain.models.schemas import Score
+from src.domain.models.schemas import FinalVerdict, Score, WedgeCandidate
 from src.graphs.state import DiscoveryCollector, TraceRecord
 from src.llm.client import LLMClient, generate_with_schema_retry
 from src.services.discovery.clustering import (
@@ -53,6 +53,7 @@ def trace(
             "analyze_root_problem",
             "analyze_structural_gap",
             "design_wedge_candidates",
+            "simplify_wedge",
             "evaluate_asset_accumulation",
             "cold_critique",
             "exit_challenger",
@@ -413,6 +414,57 @@ async def design_wedge_candidates_node(
     }
 
 
+async def simplify_wedge_candidate_node(
+    cluster: ProblemCluster,
+    failed_wedge: WedgeCandidate,
+    prefix: str,
+    llm: LLMClient,
+    retry_count: int,
+) -> dict[str, Any]:
+    started, clock = datetime.now(UTC), perf_counter()
+    result = await generate_with_schema_retry(
+        llm,
+        task="simplify_wedge_candidate",
+        input_data={
+            "discovery_lane": cluster.lane,
+            "root_problem": cluster.root_problem,
+            "persona": cluster.persona,
+            "observed_behavior": [item.repeated_behavior for item in cluster.observations],
+            "evidence": evidence_context(cluster),
+            "failed_wedge": failed_wedge.model_dump(mode="json"),
+            "constraints": (
+                "Return exactly one materially simpler wedge. The user supplies exactly one "
+                "input and receives exactly one immediately understandable output. Prefer a "
+                "manual concierge process; do not require unavailable external data, suppliers, "
+                "network liquidity, health/legal judgment, or a pre-existing accumulated dataset. "
+                "Preserve the evidenced behavior, not the failed product shape."
+            ),
+        },
+        output_model=WedgeDesignAnalysis,
+        metadata={
+            "prompt_version": "wedge-simplification-v1",
+            "candidate_id": cluster.cluster_id,
+            "attempt": retry_count + 1,
+        },
+    )
+    wedges = result.candidates[:1]
+    return {
+        "wedge_candidates": wedges,
+        "wedge_retry_count": retry_count + 1,
+        "wedge_simplification_used": True,
+        "trace": [
+            trace(
+                f"{prefix}:simplify_wedge_to_one_input_one_output",
+                started,
+                clock,
+                f"attempt={retry_count + 1} items={len(wedges)}",
+                actual_route="reevaluate_product",
+                route_reason="bounded simplification produced a new wedge for full Product Gate re-entry",
+            )
+        ],
+    }
+
+
 def evaluation_node(name: str, score: Score, prefix: str) -> dict[str, Any]:
     started, clock = datetime.now(UTC), perf_counter()
     event_names = {
@@ -553,6 +605,12 @@ def write_thesis_node(state: dict[str, Any], prefix: str) -> dict[str, Any]:
         strongest_objection_override=state.get("strongest_objection"),
         causal_gap_verified=bool(state.get("causal_gap_verified", False)),
         unknowns_override=state.get("unknowns", []),
+        verdict_override=(
+            FinalVerdict.WILD_BET
+            if state.get("wedge_simplification_used")
+            and state["cluster"].lane != DiscoveryLane.PROBLEM_SOLVER
+            else None
+        ),
     )
     return {
         "thesis": thesis,

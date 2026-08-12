@@ -29,6 +29,10 @@ def delight_validation_contract_failures(
             plan.minimum_unsolicited_shares
             == contract.delight_validation_minimum_unsolicited_shares
         ),
+        "unrewarded_second_cycle_start": (
+            plan.minimum_unrewarded_second_cycle_starts
+            == contract.delight_validation_minimum_unrewarded_second_cycle_starts
+        ),
         "referred_user_arrival": (
             not contract.delight_validation_requires_referred_arrival
             or plan.require_referred_user_arrival

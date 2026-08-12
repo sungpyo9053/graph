@@ -207,6 +207,7 @@ class ValidationPlan(BaseModel):
     minimum_active_days: int | None = Field(default=None, ge=1)
     minimum_next_week_requests: int | None = Field(default=None, ge=1)
     minimum_unsolicited_shares: int | None = Field(default=None, ge=1)
+    minimum_unrewarded_second_cycle_starts: int | None = Field(default=None, ge=1)
     require_referred_user_arrival: bool = False
     require_curiosity_driven_return_check: bool = False
 

@@ -21,7 +21,10 @@ from src.domain.models.schemas import (
     ValidationPlan,
     WedgeCandidate,
 )
-from src.domain.policies.product import evaluate_product_testability
+from src.domain.policies.product import (
+    can_attempt_wedge_simplification,
+    evaluate_product_testability,
+)
 from src.domain.policies.quality import (
     arbitrate_findings,
     canonical_finding_fingerprint,
@@ -29,6 +32,7 @@ from src.domain.policies.quality import (
     final_verify,
     repeated_root_finding,
 )
+from src.graphs.product.graph import build_product_graph
 from src.graphs.quality.graph import build_quality_graph
 from src.graphs.state import CandidateGraphState
 from src.llm.client import DeterministicFakeLLM
@@ -235,6 +239,71 @@ def test_product_unknowns_move_to_validation_instead_of_hold() -> None:
     assert "switching behavior is unvalidated" in decision.unknowns
 
 
+def test_user_supplied_photo_wedge_gets_one_simplification_before_hold() -> None:
+    state = _state()
+    state["cluster"] = state["cluster"].model_copy(
+        update={"lane": DiscoveryLane.BEHAVIOR_REDESIGN}
+    )
+    failed = state["selected_wedge"].model_copy(
+        update={
+            "name": "complex dated growth card",
+            "user_input": "one meal photo supplied by the user",
+            "required_data": "a user-supplied meal photo",
+            "data_access_feasible": False,
+            "manual_validation_feasible": True,
+            "complexity": "HIGH",
+        }
+    )
+
+    allowed, _ = can_attempt_wedge_simplification(state["cluster"], failed, 0)
+    retried, _ = can_attempt_wedge_simplification(state["cluster"], failed, 1)
+
+    assert allowed is True
+    assert retried is False
+    assert evaluate_product_testability(state["cluster"], failed).route == "HOLD"
+
+
+@pytest.mark.asyncio
+async def test_product_graph_simplifies_once_then_reenters_full_gate() -> None:
+    class ComplexThenSimpleLLM(DeterministicFakeLLM):
+        async def generate_structured(self, **kwargs):
+            result = await super().generate_structured(**kwargs)
+            if kwargs["task"] == "design_wedge_candidates":
+                failed = result.candidates[0].model_copy(
+                    update={
+                        "name": "complex dated growth card",
+                        "user_input": "one meal photo supplied by the user",
+                        "required_data": "a user-supplied meal photo",
+                        "data_access_feasible": False,
+                        "manual_validation_feasible": True,
+                        "complexity": "HIGH",
+                    }
+                )
+                return result.model_copy(update={"candidates": [failed]})
+            return result
+
+    state = _state()
+    state["cluster"] = state["cluster"].model_copy(
+        update={"lane": DiscoveryLane.BEHAVIOR_REDESIGN}
+    )
+    state["wedge_retry_count"] = 0
+    result = await build_product_graph(
+        FixtureDiscoveryCollector(), ComplexThenSimpleLLM()
+    ).ainvoke(state)
+
+    assert result["wedge_retry_count"] == 1
+    assert result["wedge_simplification_used"] is True
+    assert result["selected_wedge"].name == "single-input manual result"
+    assert result["selected_wedge"].data_access_feasible is True
+    assert result["product_route"] == "DESIGN_VALIDATION"
+    gate_routes = [
+        event.get("actual_route")
+        for event in result["trace"]
+        if event["node"].endswith("product_quality_gate")
+    ]
+    assert gate_routes == ["REVISE_WEDGE", "DESIGN_VALIDATION"]
+
+
 def test_product_holds_inaccessible_data_and_rejects_weak_behavior_evidence() -> None:
     inaccessible = _state(data_access=False)
     assert (
@@ -430,6 +499,48 @@ def test_delight_arbitration_does_not_require_pain_displacement_or_verified_expa
 
     assert results[0].verdict == "FALSE_POSITIVE"
     assert results[1].actual_route == "validation_hypothesis"
+
+
+def test_delight_unverified_structural_gap_stays_unknown_instead_of_looping() -> None:
+    state = _state()
+    state["cluster"] = state["cluster"].model_copy(
+        update={"lane": DiscoveryLane.BEHAVIOR_REDESIGN}
+    )
+    finding = _finding(CritiqueCategory.FALSE_STRUCTURAL_GAP)
+
+    results, route = arbitrate_findings([finding], state)
+
+    assert results[0].verdict == "NEEDS_MORE_EVIDENCE"
+    assert results[0].actual_route == "validation_hypothesis"
+    assert route == "final_verify"
+
+
+def test_delight_behavior_opportunity_unknown_does_not_rewrite_verified_behavior() -> None:
+    state = _state()
+    state["cluster"] = state["cluster"].model_copy(
+        update={"lane": DiscoveryLane.BEHAVIOR_REDESIGN}
+    )
+    finding = _finding(CritiqueCategory.WRONG_ROOT_PROBLEM)
+
+    results, route = arbitrate_findings([finding], state)
+
+    assert results[0].actual_route == "validation_hypothesis"
+    assert route == "final_verify"
+
+
+def test_delight_validation_metric_critique_does_not_regenerate_wedge() -> None:
+    state = _state()
+    state["cluster"] = state["cluster"].model_copy(
+        update={"lane": DiscoveryLane.BEHAVIOR_REDESIGN}
+    )
+    finding = _finding(CritiqueCategory.WEAK_WEDGE).model_copy(
+        update={"affected_claim": "validation.success_criterion and validation.failure_criterion"}
+    )
+
+    results, route = arbitrate_findings([finding], state)
+
+    assert results[0].actual_route == "validation_hypothesis"
+    assert route == "final_verify"
     assert route == "final_verify"
 
 

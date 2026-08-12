@@ -118,11 +118,26 @@ flowchart TD
     FF --> M
     M --> SEL[select_wedge]
     SEL --> C{product_quality_gate<br/>minimum testability · code}
+    C -->|REVISE_WEDGE · max 1| R[입력 1개·출력 1개로 단순화<br/>structured LLM]
+    R --> P
+    R --> F
+    R --> O
+    R --> SG
+    R --> SW
+    R --> WS
+    R --> AS
+    R --> FF
     C -->|DESIGN_VALIDATION| E((END / validation))
     C -->|HOLD/REJECT| X((END))
 ```
 
 평가 fan-out은 실제 LangGraph 병렬 edge다. 각 평가 노드는 자신의 필드만 기록하며 `merge_evaluations`에서 합친다. 축적 자산과 확장 경로도 서로 다른 노드다. 원문이 자산 통제와 재사용을 뒷받침하지 않으면 코드가 두 점수를 0/unknown으로 제한한다.
+
+첫 Wedge가 복잡하거나 데이터 접근 불가로 표시됐더라도, 근거 Gate를 통과했고
+사용자가 입력을 직접 제공하며 수동 대행 실험이 가능하면 즉시 HOLD하지 않는다.
+`simplify_wedge_to_one_input_one_output`을 최대 한 번 호출해 외부 데이터·공급자·
+네트워크 없이 `입력 1개 → 즉시 결과 1개`로 재설계하고 모든 평가 fan-out과 Product
+Gate를 다시 실행한다. 실제 외부 데이터 차단이 남거나 두 번째 Gate도 실패하면 HOLD한다.
 
 ## 확인편향 방지 입력 경계
 
