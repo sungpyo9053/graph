@@ -26,6 +26,8 @@ dependencies = [
 
 [project.optional-dependencies]
 postgres = ["psycopg[binary]>=3.2,<4", "pgvector>=0.4,<1"]
+gui = ["PySide6>=6.9,<7"]
+package = ["PyInstaller>=6.15,<7"]
 dev = [
   "mypy>=1.17,<2",
   "pytest>=8.4,<9",

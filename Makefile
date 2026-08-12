@@ -7,7 +7,7 @@ LANGUAGE ?= ko
 CANDIDATE_COUNT ?= 5
 INPUT ?= verified-urls.json
 
-.PHONY: discover discover-daily discover-from-urls test lint typecheck
+.PHONY: discover discover-daily discover-from-urls gui gui-build test lint typecheck
 
 discover:
 	$(PYTHON) -m src.cli discover --mode "$(MODE)" --max-candidates "$(MAX_CANDIDATES)" $(if $(FOCUS),--focus "$(FOCUS)",)
@@ -17,6 +17,12 @@ discover-daily:
 
 discover-from-urls:
 	$(PYTHON) -m src.cli discover-from-urls --input "$(INPUT)"
+
+gui:
+	LLM_PROVIDER=$${LLM_PROVIDER:-codex} $(PYTHON) -m src.desktop
+
+gui-build:
+	$(PYTHON) -m PyInstaller --noconfirm --clean packaging/idea-graph-gui.spec
 
 test:
 	$(PYTHON) -m pytest

@@ -17,7 +17,7 @@ from openai import APIConnectionError, APIStatusError, AsyncOpenAI
 from pydantic import BaseModel, ValidationError
 
 from src.config import settings
-from src.observability.heartbeat import invocation_context
+from src.observability.heartbeat import emit_runtime_event, invocation_context
 
 ModelT = TypeVar("ModelT", bound=BaseModel)
 
@@ -497,6 +497,17 @@ class CodexLLMClient:
         status: str,
         elapsed_seconds: float,
     ) -> None:
+        emit_runtime_event(
+            {
+                "kind": "LLM",
+                "run_id": run_id,
+                "candidate_id": candidate_id,
+                "node": node,
+                "invocation_id": invocation_id,
+                "status": status,
+                "elapsed_seconds": round(elapsed_seconds, 1),
+            }
+        )
         timestamp = datetime.now(UTC).isoformat(timespec="seconds")
         print(
             f"[{timestamp}] run_id={run_id} candidate_id={candidate_id} "

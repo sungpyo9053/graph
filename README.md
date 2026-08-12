@@ -119,7 +119,46 @@ make discover MODE=focused FOCUS="dental clinic operations"
 
 SNS도 예외가 아닙니다. 로그인·paywall·차단을 우회하지 않고 공개 GET 응답에 실제로 포함된 게시물·댓글만 사용합니다. 동일 계정, mirror, 재게시 자료는 독립 근거를 늘리지 않으며 확인할 수 없는 작성자나 댓글은 unknown으로 남깁니다.
 
-## 결과 조회 UI/API
+## 네이티브 실행 그래프 UI
+
+브라우저 대시보드와 별도로, MFC 도구처럼 독립 창에서 실제 그래프 실행을
+관찰하는 PySide6 UI를 제공합니다. 문서용 그림을 재생하는 것이 아니라 기존
+`PortfolioDiscoveryGraph`를 worker thread에서 실행하고, 코드 노드와 Codex
+heartbeat가 내보낸 이벤트로 노드와 edge를 갱신합니다.
+
+```bash
+.venv/bin/pip install -e '.[gui]'
+LLM_PROVIDER=codex make gui
+```
+
+macOS에서 Python 명령 없이 더블클릭할 앱을 만들려면 다음을 한 번 실행합니다.
+
+```bash
+.venv/bin/pip install -e '.[gui,package]'
+make gui-build
+open 'dist/Idea Discovery Graph.app'
+```
+
+생성물은 `dist/Idea Discovery Graph.app`입니다. Finder에서는 이후 이 앱만
+더블클릭하면 됩니다. 실행 코드·설정·기본 `verified-urls.json`은 번들에
+포함되며 Python 가상환경은 실행할 때 필요하지 않습니다. Codex 인증정보는
+포함하지 않고 현재 사용자의 `~/.local/bin/codex`와 로그인 상태를 사용합니다.
+Finder에서 실행한 결과는 기본적으로
+`~/Documents/IdeaDiscoveryGraph/output/`에 저장됩니다.
+
+창에서 결론 힌트가 없는 `verified-urls.json`을 선택하고 **아이디어 찾기**를
+누릅니다. 현재 노드는 노란색으로 맥박치고, 완료는 초록색, 수정·되돌아감은
+주황색, 실패·기각은 빨간색으로 바뀝니다. 실제 conditional edge,
+재수집·Wedge 단순화·Quality revision·Exit Challenger back-edge와 평가
+fan-out/fan-in이 표시됩니다. 휠로 확대/축소하고 드래그로 큰 캔버스를 이동할
+수 있습니다.
+
+오른쪽 타임라인은 `시간`, `run_id`, `candidate_id`, `node`, `invocation_id`,
+`status`, `elapsed_seconds`만 보여줍니다. 민감할 수 있는 원문과 모델 응답은
+표시하지 않습니다. GUI 실행도 `LLM_PROVIDER=fake`를 거부하며 Brave 키 없이
+verified URL 경로를 사용합니다.
+
+## 결과 조회 Web UI/API
 
 ```bash
 LLM_PROVIDER=codex .venv/bin/uvicorn src.main:app --reload

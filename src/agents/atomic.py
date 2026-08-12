@@ -17,6 +17,7 @@ from src.domain.models.discovery import DiscoveryLane, DiscoveryRequest, Problem
 from src.domain.models.schemas import FinalVerdict, Score, WedgeCandidate
 from src.graphs.state import DiscoveryCollector, TraceRecord
 from src.llm.client import LLMClient, generate_with_schema_retry
+from src.observability.heartbeat import emit_runtime_event, invocation_context
 from src.services.discovery.clustering import (
     cluster_observations,
     has_minimum_strong_evidence,
@@ -59,7 +60,7 @@ def trace(
             "exit_challenger",
         )
     )
-    return TraceRecord(
+    record = TraceRecord(
         node=name,
         status=status,
         detail=detail,
@@ -75,6 +76,22 @@ def trace(
         provider=provider or ("structured_llm" if qualitative else "code"),
         schema_validation=schema_validation or ("VALID" if qualitative else "NOT_APPLICABLE"),
     )
+    run_id, candidate_id = invocation_context()
+    emit_runtime_event(
+        {
+            "kind": "NODE",
+            "run_id": run_id,
+            "candidate_id": candidate_id,
+            "node": name,
+            "status": status,
+            "timestamp": completed.isoformat(),
+            "elapsed_seconds": record["duration_ms"] / 1000,
+            "actual_route": actual_route,
+            "route_reason": route_reason,
+            "detail": detail[:240],
+        }
+    )
+    return record
 
 
 def evidence_context(cluster: ProblemCluster) -> list[dict[str, Any]]:
