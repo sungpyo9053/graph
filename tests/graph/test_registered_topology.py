@@ -11,6 +11,7 @@ from src.graphs.problem.graph import build_problem_graph
 from src.graphs.product.graph import build_product_graph
 from src.graphs.quality.graph import build_quality_graph
 from src.graphs.routes import GRAPH_ROUTE_REGISTRY
+from src.graphs.social.graph import build_social_discovery_graph
 from src.graphs.validation.graph import build_validation_graph
 from src.llm.client import DeterministicFakeLLM
 from tests.fixture_collector import FixtureDiscoveryCollector
@@ -69,3 +70,43 @@ def test_problem_graph_has_real_lane_branch_and_fan_in() -> None:
     assert ("identify_persona", "analyze_behavior_opportunity") in edges
     assert ("analyze_root_problem", "review_problem_evidence") in edges
     assert ("analyze_behavior_opportunity", "review_problem_evidence") in edges
+
+
+def test_social_subgraph_has_registered_order_and_portfolio_integration() -> None:
+    social_edges = _edge_pairs(build_social_discovery_graph())
+    assert {
+        ("__start__", "extract_social_behavior_memes"),
+        ("extract_social_behavior_memes", "inspect_social_comment_participation"),
+        (
+            "inspect_social_comment_participation",
+            "verify_social_accounts_and_platforms",
+        ),
+        ("verify_social_accounts_and_platforms", "evaluate_social_archetype_pain_removal"),
+        (
+            "verify_social_accounts_and_platforms",
+            "evaluate_social_archetype_behavior_gamification",
+        ),
+        (
+            "verify_social_accounts_and_platforms",
+            "evaluate_social_archetype_social_competition_collection",
+        ),
+        (
+            "evaluate_social_archetype_pain_removal",
+            "merge_social_archetypes_for_one_week_validation",
+        ),
+        (
+            "evaluate_social_archetype_behavior_gamification",
+            "merge_social_archetypes_for_one_week_validation",
+        ),
+        (
+            "evaluate_social_archetype_social_competition_collection",
+            "merge_social_archetypes_for_one_week_validation",
+        ),
+        ("merge_social_archetypes_for_one_week_validation", "__end__"),
+    }.issubset(social_edges)
+
+    portfolio_edges = _edge_pairs(
+        build_discovery_graph(FixtureDiscoveryCollector(), DeterministicFakeLLM())
+    )
+    assert ("normalize_evidence", "social_discovery_subgraph") in portfolio_edges
+    assert ("social_discovery_subgraph", "detect_workarounds") in portfolio_edges

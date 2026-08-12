@@ -1,8 +1,8 @@
 {% extends "base.html" %}{% block content %}
 <section class="hero"><div><p class="eyebrow">EVIDENCE DISCOVERY BOARD</p><h1>반복 행동에서 검증할 사업 논제를 찾습니다.</h1><p>이 화면은 제품을 생성하지 않고, live 공개 웹 조사 결과와 실행 경로만 보여줍니다.</p></div></section>
 <div class="notice"><strong>순위 범위:</strong> 전체 시장의 절대 순위가 아니라 각 실행의 쿼리·출처·기간 안에서 선정된 근거 기반 후보 최대 5개입니다. 실행: <code>make discover MODE=open</code></div>
-<table><thead><tr><th>실행</th><th>모드/주제</th><th>공급자</th><th>검색 결과</th><th>검증 원문</th><th>요약만</th><th>후보</th><th>완료 시각</th></tr></thead><tbody>
-{% for run in runs %}<tr><td><a href="/discoveries/{{ run.run_id }}">{{ run.run_id[:8] }}</a> · <a href="/runs/{{ run.run_id }}/view">경로</a></td><td>{{ run.mode }} / {{ run.focus or 'open' }}</td><td>{{ run.provider }}<br><small>{{ run.data_origin }}</small></td><td>{{ run.result_count }}</td><td>{{ run.original_pages_verified }}</td><td>{{ run.snippet_only_count }}</td><td>{{ run.candidates|length }}</td><td>{{ run.completed_at }}</td></tr>
-{% else %}<tr><td colspan="8" class="empty">아직 live 조사 결과가 없습니다. API 키를 설정한 뒤 make discover를 실행하세요.</td></tr>{% endfor %}
+<table><thead><tr><th>실행</th><th>모드/주제</th><th>공급자</th><th>검색 결과</th><th>검증 원문</th><th>SNS 신호</th><th>요약만</th><th>후보</th><th>완료 시각</th></tr></thead><tbody>
+{% for run in runs %}<tr><td><a href="/discoveries/{{ run.run_id }}">{{ run.run_id[:8] }}</a> · <a href="/runs/{{ run.run_id }}/view">경로</a></td><td>{{ run.mode }} / {{ run.focus or 'open' }}</td><td>{{ run.provider }}<br><small>{{ run.data_origin }}</small></td><td>{{ run.result_count }}</td><td>{{ run.original_pages_verified }}</td><td>{{ run.social_signal_count }}</td><td>{{ run.snippet_only_count }}</td><td>{{ run.candidates|length }}</td><td>{{ run.completed_at }}</td></tr>
+{% else %}<tr><td colspan="9" class="empty">아직 live 조사 결과가 없습니다. Brave 키 없이도 검증 URL 파일로 make discover-from-urls를 실행할 수 있습니다.</td></tr>{% endfor %}
 </tbody></table>
 {% endblock %}

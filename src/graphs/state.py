@@ -16,6 +16,8 @@ from src.domain.models.discovery import (
     PublicDocument,
     SearchQuery,
     SearchResult,
+    SocialArchetypeCandidate,
+    SocialSignal,
 )
 from src.domain.models.quality import (
     ArbitrationResult,
@@ -80,6 +82,9 @@ class PortfolioGraphState(TypedDict, total=False):
     results: list[SearchResult]
     documents: list[PublicDocument]
     observations: list[BehaviorObservation]
+    social_observations: list[BehaviorObservation]
+    social_signals: list[SocialSignal]
+    social_archetypes: Annotated[list[SocialArchetypeCandidate], operator.add]
     clusters: list[ProblemCluster]
     eligible_clusters: list[ProblemCluster]
     rejected_clusters: list[ProblemCluster]

@@ -1,8 +1,10 @@
 # Evidence Thesis Graph
 
-공개 웹에서 실제 반복 행동을 찾고 세 가지 방식으로 재구성하는 아이디어 발굴 그래프입니다. `PROBLEM_SOLVER`는 불편과 우회를 제거하고, `BEHAVIOR_REDESIGN`은 이미 자주 하는 행동에 경쟁·수집·정체성·공유·진행감을 붙이며, `WILD_BET`은 근거가 약해도 1~2주 안에 싸게 반응을 볼 수 있는 실험을 보존합니다. 발견한 앱이나 웹을 개발·배포하지 않습니다.
+공개 웹과 공개 접근 가능한 SNS 원문에서 실제 반복 행동을 찾고 세 가지 방식으로 재구성하는 아이디어 발굴 그래프입니다. `PROBLEM_SOLVER`는 불편과 우회를 제거하고, `BEHAVIOR_REDESIGN`은 이미 자주 하는 행동에 경쟁·수집·정체성·공유·진행감을 붙이며, `WILD_BET`은 근거가 약해도 1~2주 안에 싸게 반응을 볼 수 있는 실험을 보존합니다. 발견한 앱이나 웹을 개발·배포하지 않습니다.
 
 실행 구조는 `최상위 Discovery 오케스트레이터 → 후보별 Problem/Product/Validation/Quality 서브그래프 → 원자 에이전트 노드`입니다. Quality Graph는 `Evidence Gate → Cold Critique → Code Arbitration → Targeted Revision → Final Verify → Exit Challenger`를 반복하고, 모든 계약을 통과한 뒤에만 Thesis를 씁니다. [행동 재설계 레인](docs/behavior-redesign.md), [등록 edge 기반 Runtime Graph](docs/runtime-graph.md), [상세 설계](docs/graph-design.md)를 참고하십시오.
+
+SNS Discovery 서브그래프는 “앱 아이디어 추천”을 검색하지 않습니다. 상승 행동·챌린지·생활 해킹·반복 귀찮음·제작 요청·댓글 모방·캡처 자랑·자발적 경쟁/수집을 찾고, 서로 다른 계정과 플랫폼에서 반복되는지 확인한 뒤 `불편 제거`, `행동 게임화`, `공유·경쟁·수집` 원형으로 실제 fan-out/fan-in합니다. 이후 기존 근거 Gate와 Wedge·1주 검증 설계로 합류합니다.
 
 정량 가능한 근거 수, 중복도, 점수 합산, 필수 필드와 실행 한도는 코드가 판정합니다. 근본 문제, 구조적 공백, 웨지, 자산-확장 인과, 반증처럼 의미 판단이 필요한 작업만 구조화된 LLM을 호출합니다. 운영에서 GPT를 사용하려면 다음을 설정합니다.
 
@@ -110,6 +112,8 @@ make discover MODE=focused FOCUS="dental clinic operations"
 - `candidate-N.md`: 정확한 20개 섹션의 Problem–Wedge–Expansion Thesis
 
 검색 snippet만 본 자료는 `SEARCH_SNIPPET_ONLY`, 실제 URL을 가져와 본문을 파싱한 자료는 `ORIGINAL_VERIFIED`입니다. 최종 A~C 행동 근거에는 원문 GET에 성공했을 뿐 아니라 작성자 자신의 수행 경험으로 분류된 `FIRSTHAND_BEHAVIOR`만 들어갑니다. 절차 안내(`PROCEDURAL_GUIDE`)와 공식 접수 규정(`OFFICIAL_PROCESS`)은 대안 조사에는 쓰지만 행동 근거 수를 늘리지 않습니다.
+
+SNS도 예외가 아닙니다. 로그인·paywall·차단을 우회하지 않고 공개 GET 응답에 실제로 포함된 게시물·댓글만 사용합니다. 동일 계정, mirror, 재게시 자료는 독립 근거를 늘리지 않으며 확인할 수 없는 작성자나 댓글은 unknown으로 남깁니다.
 
 ## 결과 조회 UI/API
 

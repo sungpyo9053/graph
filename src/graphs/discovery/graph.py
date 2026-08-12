@@ -32,6 +32,7 @@ from src.graphs.candidate import (
     build_candidate_research_graph,
 )
 from src.graphs.routes import DISCOVERY_ROUTES
+from src.graphs.social.graph import build_social_discovery_graph
 from src.graphs.state import CandidateGraphState, DiscoveryCollector, PortfolioGraphState
 from src.llm.client import LLMClient, LLMError
 from src.observability.heartbeat import reset_invocation_context, set_invocation_context
@@ -45,6 +46,7 @@ def build_discovery_graph(collector: DiscoveryCollector, llm: LLMClient) -> Any:
     """Portfolio orchestrator: discovery graph -> parallel candidate subgraphs -> selection."""
     research_graph = build_candidate_research_graph(collector, llm)
     finalization_graph = build_candidate_finalization_graph(collector, llm)
+    social_graph = build_social_discovery_graph()
     builder = StateGraph(PortfolioGraphState)
 
     def plan(state: PortfolioGraphState) -> dict:
@@ -62,8 +64,37 @@ def build_discovery_graph(collector: DiscoveryCollector, llm: LLMClient) -> Any:
     def normalize(state: PortfolioGraphState) -> dict:
         return normalize_evidence(state["documents"])
 
+    async def discover_social(state: PortfolioGraphState) -> dict:
+        # Invoke the subgraph with an empty trace. Passing the parent trace into a
+        # state whose reducer is operator.add would append the entire history a
+        # second time when the subgraph returns.
+        result = await social_graph.ainvoke(
+            PortfolioGraphState(
+                documents=state["documents"],
+                queries=state["queries"],
+                trace=[],
+            )
+        )
+        return {
+            "social_signals": result.get("social_signals", []),
+            "social_observations": result.get("social_observations", []),
+            "social_archetypes": result.get("social_archetypes", []),
+            "trace": result.get("trace", []),
+        }
+
     def workarounds(state: PortfolioGraphState) -> dict:
-        return detect_workarounds(state["documents"], state["queries"])
+        detected = detect_workarounds(state["documents"], state["queries"])
+        combined = list(detected["observations"])
+        seen = {item.evidence.original_item_key for item in combined}
+        for item in state.get("social_observations", []):
+            if item.evidence.original_item_key not in seen:
+                combined.append(item)
+                seen.add(item.evidence.original_item_key)
+        detected["observations"] = combined
+        detected["trace"][0]["detail"] += (
+            f" social_observations={len(state.get('social_observations', []))}"
+        )
+        return detected
 
     def cluster(state: PortfolioGraphState) -> dict:
         return deduplicate_root_problems(state["observations"], state["queries"])
@@ -452,6 +483,10 @@ def build_discovery_graph(collector: DiscoveryCollector, llm: LLMClient) -> Any:
             excluded_count=sum(state.get("exclusions", {}).values()),
             exclusion_reasons=dict(sorted(state.get("exclusions", {}).items())),
             behavior_observation_count=len(state.get("observations", [])),
+            social_signal_count=len(state.get("social_signals", [])),
+            social_archetype_count=len(state.get("social_archetypes", [])),
+            social_signals=state.get("social_signals", []),
+            social_archetypes=state.get("social_archetypes", []),
             cluster_count=len(state.get("clusters", [])),
             rejected_cluster_count=len(state.get("rejected_clusters", [])) + max(0, len(state.get("eligible_clusters", [])) - len(candidates)),
             candidates=candidates,
@@ -470,6 +505,7 @@ def build_discovery_graph(collector: DiscoveryCollector, llm: LLMClient) -> Any:
     builder.add_node("plan_queries", plan)
     builder.add_node("collect_behavior_sources", collect)
     builder.add_node("normalize_evidence", normalize)
+    builder.add_node("social_discovery_subgraph", discover_social)
     builder.add_node("detect_workarounds", workarounds)
     builder.add_node("deduplicate_root_problems", cluster)
     builder.add_node("review_problem_evidence", evidence_gate)
@@ -480,7 +516,8 @@ def build_discovery_graph(collector: DiscoveryCollector, llm: LLMClient) -> Any:
     builder.add_edge(START, "plan_queries")
     builder.add_edge("plan_queries", "collect_behavior_sources")
     builder.add_edge("collect_behavior_sources", "normalize_evidence")
-    builder.add_edge("normalize_evidence", "detect_workarounds")
+    builder.add_edge("normalize_evidence", "social_discovery_subgraph")
+    builder.add_edge("social_discovery_subgraph", "detect_workarounds")
     builder.add_edge("detect_workarounds", "deduplicate_root_problems")
     builder.add_edge("deduplicate_root_problems", "review_problem_evidence")
     builder.add_conditional_edges(

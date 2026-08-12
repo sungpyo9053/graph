@@ -6,13 +6,27 @@
 flowchart TD
   subgraph PORT[Portfolio Graph]
     PS((START)) --> PQ[plan_queries] --> PC[collect_behavior_sources]
-    PC --> PN[normalize_evidence] --> PB[detect_workarounds]
+    PC --> PN[normalize_evidence] --> SG[SNS Discovery Subgraph]
+    SG --> PB[detect_workarounds]
     PB --> PD[deduplicate_root_problems] --> PE{review_problem_evidence}
     PE -- COLLECT_MORE --> PR[refine_behavior_queries] --> PC
     PE -- HOLD --> PM[select_balanced_candidates · 2/2/1]
     PE -- ANALYZE --> PO[orchestrate_candidate_subgraphs]
     PO -->|fan-out candidate 1..N| CG
     CG -->|fan-in| PM --> SAVE[save_result] --> PEND((END))
+  end
+
+  subgraph SOCIAL[SNS Discovery Graph]
+    SS((START)) --> SX[extract_social_behavior_memes]
+    SX --> SC[inspect_social_comment_participation]
+    SC --> SI[verify_social_accounts_and_platforms]
+    SI -->|fan-out| SA1[evaluate pain removal]
+    SI -->|fan-out| SA2[evaluate behavior gamification]
+    SI -->|fan-out| SA3[evaluate share·competition·collection]
+    SA1 --> SM[merge archetypes]
+    SA2 --> SM
+    SA3 --> SM
+    SM --> SE((END / one-week validation path))
   end
 
   subgraph PROBLEM[Problem or Behavior Opportunity Graph]

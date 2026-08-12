@@ -31,6 +31,23 @@ class DiscoveryLane(StrEnum):
     WILD_BET = "WILD_BET"
 
 
+class SocialSignalType(StrEnum):
+    RISING_BEHAVIOR = "RISING_BEHAVIOR"
+    CHALLENGE_OR_PLAY = "CHALLENGE_OR_PLAY"
+    APP_STACK_HACK = "APP_STACK_HACK"
+    REPEATED_FRICTION = "REPEATED_FRICTION"
+    BUILD_REQUEST = "BUILD_REQUEST"
+    COMMENT_EXTENSION = "COMMENT_EXTENSION"
+    SHAREABLE_RESULT = "SHAREABLE_RESULT"
+    ORGANIC_COMPETITION_COLLECTION = "ORGANIC_COMPETITION_COLLECTION"
+
+
+class IdeaArchetype(StrEnum):
+    PAIN_REMOVAL = "PAIN_REMOVAL"
+    BEHAVIOR_GAMIFICATION = "BEHAVIOR_GAMIFICATION"
+    SOCIAL_COMPETITION_COLLECTION = "SOCIAL_COMPETITION_COLLECTION"
+
+
 class DiscoveryRequest(BaseModel):
     mode: DiscoveryMode
     focus: str | None = None
@@ -88,6 +105,31 @@ class BehaviorObservation(BaseModel):
     measurable_loss: str
     workaround: str
     evidence: Evidence
+
+
+class SocialSignal(BaseModel):
+    signal_id: str
+    theme: str
+    lane: DiscoveryLane
+    signal_type: SocialSignalType
+    platform: str
+    source_url: HttpUrl
+    account_key: str | None = None
+    excerpt: str
+    observed_behavior: str
+    comment_participation_excerpts: list[str] = Field(default_factory=list)
+    engagement_count: int | None = Field(default=None, ge=0)
+    original_verified: bool = True
+    published_at: datetime | None = None
+
+
+class SocialArchetypeCandidate(BaseModel):
+    archetype: IdeaArchetype
+    signal_ids: list[str]
+    platforms: list[str]
+    account_keys: list[str]
+    cross_source_verified: bool
+    rationale: str
 
 
 class MarketStructureResearch(BaseModel):
@@ -224,6 +266,10 @@ class DiscoveryPortfolio(BaseModel):
     excluded_count: int
     exclusion_reasons: dict[str, int]
     behavior_observation_count: int
+    social_signal_count: int = 0
+    social_archetype_count: int = 0
+    social_signals: list[SocialSignal] = Field(default_factory=list)
+    social_archetypes: list[SocialArchetypeCandidate] = Field(default_factory=list)
     cluster_count: int
     rejected_cluster_count: int
     candidates: list[PortfolioCandidate]

@@ -45,6 +45,15 @@ def render_summary(portfolio: DiscoveryPortfolio) -> str:
         or "- 근거 gate를 통과한 후보 없음"
     )
     warnings = "\n".join(f"- {warning}" for warning in portfolio.warnings)
+    social_archetypes = (
+        "\n".join(
+            f"- {item.archetype}: signals={len(item.signal_ids)}, "
+            f"platforms={', '.join(item.platforms) or 'unknown'}, "
+            f"cross-source={item.cross_source_verified}"
+            for item in portfolio.social_archetypes
+        )
+        or "- 확인된 SNS 아이디어 원형 없음"
+    )
     return f"""# 조사 범위 및 근거 기반 상위 후보
 
 > 이 결과는 전체 시장의 절대 순위가 아니다. 이번 실행의 쿼리·출처·기간 범위에서 선정한 근거 기반 상위 후보 최대 {portfolio.candidate_limit}개다.
@@ -62,6 +71,8 @@ def render_summary(portfolio: DiscoveryPortfolio) -> str:
 - 검색 결과 요약만 확인한 자료 수: {portfolio.snippet_only_count}
 - 원문 접근 시도 수: {portfolio.original_pages_attempted}
 - 제외된 자료 수: {portfolio.excluded_count}
+- SNS 행동 신호 수: {portfolio.social_signal_count}
+- 교차 확인된 SNS 원형 수: {sum(item.cross_source_verified for item in portfolio.social_archetypes)}
 - 최종 후보 수: {len(portfolio.candidates)}
 
 ## 생성한 검색 쿼리
@@ -71,6 +82,10 @@ def render_summary(portfolio: DiscoveryPortfolio) -> str:
 ## 제외된 자료와 이유
 
 {exclusion_lines}
+
+## SNS 행동·댓글·모방 신호
+
+{social_archetypes}
 
 ## 근거 기반 상위 후보 최대 {portfolio.candidate_limit}개
 

@@ -14,7 +14,8 @@ flowchart TD
     L -->|BEHAVIOR_REDESIGN| C
     L -->|WILD_BET| C
     C --> N[사실·인용문 추출<br/>normalize_evidence]
-    N --> W[행동·우회 방법 추출<br/>detect_workarounds]
+    N --> SNS[SNS Discovery Subgraph]
+    SNS --> W[행동·우회 방법 추출<br/>detect_workarounds]
     W --> D[행동 기준 문제 군집화<br/>deduplicate_root_problems]
     D --> G{review_problem_evidence}
     G -->|근거 미달| Q
@@ -29,6 +30,34 @@ flowchart TD
     R --> V[save_result]
     V --> E((END))
 ```
+
+## SNS Discovery Graph
+
+```mermaid
+flowchart TD
+    S((START)) --> A[SNS 공개 원문에서<br/>상승 행동·밈·불편 추출]
+    A --> B[공개 HTML에 실제 보이는<br/>댓글 참여·모방 신호 확인]
+    B --> C[계정·플랫폼 독립성 확인]
+    C -->|fan-out| D1[불편 제거 원형]
+    C -->|fan-out| D2[행동 게임화 원형]
+    C -->|fan-out| D3[공유·경쟁·수집 원형]
+    D1 --> M[원형 merge]
+    D2 --> M
+    D3 --> M
+    M --> W[기존 Candidate Graph의<br/>Wedge·1주 검증 설계]
+```
+
+SNS 검색은 앱 아이디어 추천을 찾지 않는다. 갑자기 늘어난 행동, 챌린지·놀이,
+여러 앱을 조합한 생활 해킹, 반복 귀찮음, 제작 요청, 댓글의 추가 요구,
+캡처 자랑, 제품 없이 존재하는 경쟁·수집을 찾는다. 신호는 로그인 없이 GET한
+`ORIGINAL_VERIFIED` 원문만 인정한다. 동일 계정의 여러 글은 독립 확인으로
+증가하지 않고, 플랫폼 계정을 URL 또는 공개 메타데이터로 확인할 수 없으면
+`unknown`으로 남긴다.
+
+세 원형 노드는 실제 LangGraph fan-out/fan-in edge다. 이 단계에서는 해결책을
+입력으로 받지 않으며, 원형 결과는 이후 행동 군집과 근거 Gate를 거쳐 Product와
+Validation 그래프로 전달된다. 따라서 흐름은 `SNS 원문 → 행동 → 군집 → 문제/기회
+→ Wedge → 1주 검증` 순서다.
 
 ## 후보별 오케스트레이터
 

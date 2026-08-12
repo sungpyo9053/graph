@@ -20,6 +20,26 @@ OPEN_BEHAVIOR_QUERIES = [
     (DiscoveryLane.BEHAVIOR_REDESIGN, "practice_ritual", '매일 연습 공부 독서 기록 인증 챌린지 후기'),
     (DiscoveryLane.WILD_BET, "odd_repeated_ritual", '이상하지만 매일 반복하는 습관 기록 놀이 후기'),
     (DiscoveryLane.WILD_BET, "tiny_social_ritual", '친구끼리 매일 인증 내기 수집 공유하는 행동 후기'),
+    (
+        DiscoveryLane.PROBLEM_SOLVER,
+        "social_app_stack_hack",
+        'site:x.com OR site:reddit.com OR site:threads.net "매번 귀찮" 앱 조합 꿀팁',
+    ),
+    (
+        DiscoveryLane.BEHAVIOR_REDESIGN,
+        "social_challenge_mimicry",
+        "site:youtube.com OR site:tiktok.com OR site:instagram.com 챌린지 따라 해봤 인증 결과 공유",
+    ),
+    (
+        DiscoveryLane.BEHAVIOR_REDESIGN,
+        "social_share_compete_collect",
+        "site:x.com OR site:threads.net OR site:reddit.com 캡처 자랑 경쟁 수집 인증 놀이",
+    ),
+    (
+        DiscoveryLane.WILD_BET,
+        "social_build_request",
+        'site:x.com OR site:reddit.com OR site:threads.net "누가 이것 좀 만들어" 댓글',
+    ),
 ]
 
 
@@ -65,6 +85,11 @@ def build_query_plan(request: DiscoveryRequest) -> list[SearchQuery]:
         (DiscoveryLane.BEHAVIOR_REDESIGN, "ritual", f'{focus} 매일 기록 인증 수집 공유 습관 후기'),
         (DiscoveryLane.BEHAVIOR_REDESIGN, "play", f'{focus} 친구 경쟁 랭킹 꾸미기 챌린지 후기'),
         (DiscoveryLane.WILD_BET, "odd", f'{focus} 이상한 습관 매일 반복 놀이 후기'),
+        (
+            DiscoveryLane.BEHAVIOR_REDESIGN,
+            "social",
+            f"site:youtube.com OR site:tiktok.com OR site:x.com {focus} 챌린지 따라 인증 공유",
+        ),
     ]
     return [
         SearchQuery(query=query, theme=f"{slug}:{kind}", lane=lane)

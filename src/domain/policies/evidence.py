@@ -54,15 +54,25 @@ def evidence_from_signal(
 
 
 def independent_qualifying_evidence(items: Iterable[Evidence]) -> list[Evidence]:
-    selected: dict[str, Evidence] = {}
-    for item in items:
+    selected: list[Evidence] = []
+    authors: set[str] = set()
+    originals: set[str] = set()
+    independence_keys: set[str] = set()
+    ordered = sorted(items, key=lambda item: (item.grade, -item.freshness_score))
+    for item in ordered:
         if (
             item.grade not in QUALIFYING_GRADES
             or item.source_role != EvidenceSourceRole.FIRSTHAND_BEHAVIOR
             or not item.behavior_claim_verified
         ):
             continue
-        previous = selected.get(item.independence_key)
-        if previous is None or item.grade < previous.grade:
-            selected[item.independence_key] = item
-    return list(selected.values())
+        author = item.author_key.strip().lower()
+        original = item.original_item_key.strip().lower()
+        key = item.independence_key.strip().lower()
+        if author in authors or original in originals or key in independence_keys:
+            continue
+        selected.append(item)
+        authors.add(author)
+        originals.add(original)
+        independence_keys.add(key)
+    return selected

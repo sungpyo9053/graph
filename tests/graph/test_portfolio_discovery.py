@@ -28,13 +28,13 @@ def test_open_and_focused_query_plans_are_distinct() -> None:
     focused_queries = build_query_plan(
         DiscoveryRequest(mode=DiscoveryMode.FOCUSED, focus="dental clinic operations")
     )
-    assert len(open_queries) == 8
-    assert len(focused_queries) == 5
+    assert len(open_queries) == 12
+    assert len(focused_queries) == 6
     assert all("dental clinic operations" in item.query for item in focused_queries)
     assert {item.lane for item in open_queries} == set(DiscoveryLane)
-    assert [item.lane for item in open_queries].count(DiscoveryLane.PROBLEM_SOLVER) == 3
-    assert [item.lane for item in open_queries].count(DiscoveryLane.BEHAVIOR_REDESIGN) == 3
-    assert [item.lane for item in open_queries].count(DiscoveryLane.WILD_BET) == 2
+    assert [item.lane for item in open_queries].count(DiscoveryLane.PROBLEM_SOLVER) == 4
+    assert [item.lane for item in open_queries].count(DiscoveryLane.BEHAVIOR_REDESIGN) == 5
+    assert [item.lane for item in open_queries].count(DiscoveryLane.WILD_BET) == 3
 
 
 def test_focused_mode_requires_focus() -> None:
@@ -144,10 +144,21 @@ async def test_fixture_graph_is_deterministic_does_not_pad_and_reports_scope() -
         item.access_level == "ORIGINAL_VERIFIED" for item in first.candidates[0].thesis.evidence
     )
     nodes = [event.node for event in first.events]
-    assert nodes[:7] == [
+    assert nodes[:6] == [
         "plan_queries",
         "collect_behavior_sources",
         "normalize_evidence",
+        "extract_social_behavior_memes",
+        "inspect_social_comment_participation",
+        "verify_social_accounts_and_platforms",
+    ]
+    assert set(nodes[6:9]) == {
+        "evaluate_social_archetype_pain_removal",
+        "evaluate_social_archetype_behavior_gamification",
+        "evaluate_social_archetype_social_competition_collection",
+    }
+    assert nodes[9:14] == [
+        "merge_social_archetypes_for_one_week_validation",
         "detect_workarounds",
         "deduplicate_root_problems",
         "review_problem_evidence",
