@@ -7,12 +7,13 @@ from typing import Any
 
 from src.agents.models import (
     AssetExpansionAnalysis,
+    BehaviorReframeAnalysis,
     PersonaAnalysis,
     RootProblemAnalysis,
     StructuralGapAnalysis,
     WedgeDesignAnalysis,
 )
-from src.domain.models.discovery import DiscoveryRequest, ProblemCluster
+from src.domain.models.discovery import DiscoveryLane, DiscoveryRequest, ProblemCluster
 from src.domain.models.schemas import Score
 from src.graphs.state import DiscoveryCollector, TraceRecord
 from src.llm.client import LLMClient, generate_with_schema_retry
@@ -190,7 +191,12 @@ def review_problem_evidence(
     ]
     rejected = [item for item in clusters if item not in eligible]
     counts = Counter(exclusions)
-    counts["cluster_below_two_independent_A_to_C_originals"] += len(rejected)
+    counts["cluster_below_two_independent_A_to_C_originals"] += sum(
+        item.lane != DiscoveryLane.WILD_BET for item in rejected
+    )
+    counts["wild_bet_below_one_independent_behavior_original"] += sum(
+        item.lane == DiscoveryLane.WILD_BET for item in rejected
+    )
     return {
         "eligible_clusters": eligible,
         "rejected_clusters": rejected,
@@ -263,9 +269,49 @@ async def analyze_root_problem(
     }
 
 
+async def analyze_behavior_reframe(
+    cluster: ProblemCluster, prefix: str, llm: LLMClient
+) -> dict[str, Any]:
+    started, clock = datetime.now(UTC), perf_counter()
+    result = await generate_with_schema_retry(
+        llm,
+        task="analyze_behavior_reframe",
+        input_data={
+            "observed_behavior": [item.repeated_behavior for item in cluster.observations],
+            "confirmed_frequency": [item.frequency for item in cluster.observations],
+            "evidence": evidence_context(cluster),
+            "constraint": (
+                "Do not invent a pain or product. Analyze how competition, collection, "
+                "identity, sharing, or progression could change the meaning of the existing behavior."
+            ),
+        },
+        output_model=BehaviorReframeAnalysis,
+        metadata={
+            "prompt_version": "behavior-reframe-v1",
+            "candidate_id": cluster.cluster_id,
+        },
+    )
+    opportunity = result.behavior_opportunity.strip()
+    updated = cluster.model_copy(update={"root_problem": opportunity})
+    return {
+        "cluster": updated,
+        "root_problem": opportunity,
+        "behavior_reframe": result,
+        "trace": [
+            trace(
+                f"{prefix}:analyze_behavior_opportunity",
+                started,
+                clock,
+                opportunity[:160],
+            )
+        ],
+    }
+
+
 def problem_gate(cluster: ProblemCluster, root_problem: str, prefix: str) -> dict[str, Any]:
     started, clock = datetime.now(UTC), perf_counter()
-    passed = len(cluster.independent_evidence) >= 2 and bool(root_problem)
+    minimum = 1 if cluster.lane == "WILD_BET" else 2
+    passed = len(cluster.independent_evidence) >= minimum and bool(root_problem)
     route = "ANALYZE_MARKET_STRUCTURE" if passed else "REJECT"
     return {
         "evidence_passed": passed,
@@ -344,15 +390,17 @@ async def design_wedge_candidates_node(
         llm,
         task="design_wedge_candidates",
         input_data={
+            "discovery_lane": cluster.lane,
             "root_problem": cluster.root_problem,
             "persona": cluster.persona,
             "workarounds": [item.workaround for item in cluster.observations],
             "evidence": evidence_context(cluster),
             "constraints": "maximum 3 materially different wedges; each must be one input -> one result",
             "behavior_displacement_contract": (
-                "For each wedge state whether it REMOVES_STEP, CONSOLIDATES_STEPS, "
-                "NO_DISPLACEMENT, or UNKNOWN; count expected removed workaround steps; "
-                "and state whether the user must re-enter the same data into an incumbent form."
+                "For PROBLEM_SOLVER, state whether the wedge removes or consolidates a workaround. "
+                "For BEHAVIOR_REDESIGN/WILD_BET, do not require displacement; instead define the "
+                "instant visible result, repeat trigger, social loop, ten-second demo, solo value, "
+                "network amplification, and a bounded validation cost."
             ),
         },
         output_model=WedgeDesignAnalysis,
@@ -502,8 +550,7 @@ def write_thesis_node(state: dict[str, Any], prefix: str) -> dict[str, Any]:
         assets_override=state["assets"],
         expansion_override=state["expansion_paths"],
         validation_override=state["validation_plan"],
-        strongest_objection_override=state.get("strongest_objection")
-        or "No source-grounded blocking objection survived Cold Critique and code arbitration; switching remains unvalidated.",
+        strongest_objection_override=state.get("strongest_objection"),
         causal_gap_verified=bool(state.get("causal_gap_verified", False)),
         unknowns_override=state.get("unknowns", []),
     )

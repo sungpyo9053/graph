@@ -9,10 +9,20 @@ flowchart TD
     PC --> PN[normalize_evidence] --> PB[detect_workarounds]
     PB --> PD[deduplicate_root_problems] --> PE{review_problem_evidence}
     PE -- COLLECT_MORE --> PR[refine_behavior_queries] --> PC
-    PE -- HOLD --> PM[select_distinct_candidates]
+    PE -- HOLD --> PM[select_balanced_candidates · 2/2/1]
     PE -- ANALYZE --> PO[orchestrate_candidate_subgraphs]
     PO -->|fan-out candidate 1..N| CG
     CG -->|fan-in| PM --> SAVE[save_result] --> PEND((END))
+  end
+
+  subgraph PROBLEM[Problem or Behavior Opportunity Graph]
+    PGS((START)) --> PAIN[extract_pain] --> PERSONA[identify_persona]
+    PERSONA --> LANE{candidate lane}
+    LANE -- PROBLEM_SOLVER --> ROOT[analyze_root_problem]
+    LANE -- BEHAVIOR_REDESIGN/WILD_BET --> REFRAME[analyze_behavior_opportunity]
+    ROOT --> PGATE{review_problem_evidence}
+    REFRAME --> PGATE
+    PGATE --> PGEND((END))
   end
 
   subgraph CG[Candidate Graph]

@@ -4,7 +4,7 @@
 
 `src/search`는 검색 공급자, `src/collectors/public_web.py`는 원문 접근, `src/services/discovery`는 query plan·행동 추출·군집화·시장 구조 조사·논제 작성·보고를 담당합니다. 외부 경계와 결과는 모두 Pydantic으로 검증합니다. API/UI는 `output/<run_id>/portfolio.json`을 읽기만 하며 외부 검색을 시작하지 않습니다.
 
-프로덕션 의존 방향은 `CLI → (선택적 SearchProvider 또는 raw verified URLs) → PublicWebCollector → PortfolioDiscoveryGraph → extraction/clustering/thesis → reporting`입니다. Brave는 선택 사항이며 `discover-from-urls`는 검색 API 키 없이 실제 원문을 GET합니다. 테스트 fixture는 `tests/`에만 있고 live collector와 graph 생성자가 이 경계를 코드로 강제합니다.
+프로덕션 의존 방향은 `CLI → (선택적 SearchProvider 또는 raw verified URLs) → PublicWebCollector → PortfolioDiscoveryGraph → lane-aware extraction/clustering/thesis → reporting`입니다. Discovery는 `PROBLEM_SOLVER`, `BEHAVIOR_REDESIGN`, `WILD_BET` 세 레인으로 fan-out하며 최종 포트폴리오는 각각 최대 2/2/1개입니다. Brave는 선택 사항이며 `discover-from-urls`는 검색 API 키 없이 실제 원문을 GET합니다.
 
 ## 상태와 실행 이력
 
@@ -12,7 +12,7 @@
 
 Quality 서브그래프는 실행 시작 시 `DiscoveryContract`를 상태에 고정합니다. Cold Critique와 Exit Challenger는 이전 critique 문맥을 전달하지 않는 fresh ephemeral Codex 호출이고, 코드 Arbitration이 검증 가능한 사실을 우선합니다. 같은 Codex 모델 세 번의 역할 분리는 교차 모델 검증이 아니므로 논쟁적·고위험 판단은 사람 승인 대상으로 남깁니다.
 
-CLI 관측성은 Codex invocation마다 민감하지 않은 heartbeat만 stderr에 보냅니다. 실행 ID, 후보 ID, 노드, invocation ID, 상태와 경과 시간만 노출하며 원문과 모델 입출력은 `portfolio.json`의 구조화된 결과 경계 밖으로 로그하지 않습니다. `REPORT_COMPLETE`는 보고서 작성 실행이 정상 종료됐다는 뜻일 뿐이며, 후보 품질은 별도의 `RESEARCH/INTERVIEW/VALIDATE/HOLD/REJECT`로 저장합니다.
+CLI 관측성은 Codex invocation마다 민감하지 않은 heartbeat만 stderr에 보냅니다. 실행 ID, 후보 ID, 노드, invocation ID, 상태와 경과 시간만 노출합니다. `REPORT_COMPLETE`는 보고서 작성 성공일 뿐이며, 후보 판정은 `VALIDATE_PROBLEM/VALIDATE_DELIGHT/WILD_BET/HOLD/REJECT`로 별도 저장합니다.
 
 기존 단일 후보 `IdeaState`, SQLAlchemy 엔티티, LLM abstraction은 정책·확장 기반으로 남아 있지만 live portfolio 실행의 SSOT는 `DiscoveryPortfolio` JSON입니다. 실제 검색 결과는 DB fixture 경로와 섞이지 않습니다.
 

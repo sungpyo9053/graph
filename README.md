@@ -1,8 +1,8 @@
 # Evidence Thesis Graph
 
-공개 웹에서 실제 반복 행동과 우회 행동을 찾고, 근본 문제·기존 대안·구조적 공백·가장 작은 진입 해결책·축적 자산·확장 경로를 연결하는 아이디어 발굴 그래프입니다. 발견한 앱이나 웹을 개발·배포하지 않습니다. 산출물은 근거 범위가 명시된 **Problem–Wedge–Expansion Thesis** Markdown/JSON입니다.
+공개 웹에서 실제 반복 행동을 찾고 세 가지 방식으로 재구성하는 아이디어 발굴 그래프입니다. `PROBLEM_SOLVER`는 불편과 우회를 제거하고, `BEHAVIOR_REDESIGN`은 이미 자주 하는 행동에 경쟁·수집·정체성·공유·진행감을 붙이며, `WILD_BET`은 근거가 약해도 1~2주 안에 싸게 반응을 볼 수 있는 실험을 보존합니다. 발견한 앱이나 웹을 개발·배포하지 않습니다.
 
-실행 구조는 `최상위 Discovery 오케스트레이터 → 후보별 Problem/Product/Validation/Quality 서브그래프 → 원자 에이전트 노드`입니다. Quality Graph는 `Evidence Gate → Cold Critique → Code Arbitration → Targeted Revision → Final Verify → Exit Challenger`를 반복하고, 모든 계약을 통과한 뒤에만 Thesis를 씁니다. [등록 edge 기반 Runtime Graph](docs/runtime-graph.md)와 [상세 설계](docs/graph-design.md)를 참고하십시오.
+실행 구조는 `최상위 Discovery 오케스트레이터 → 후보별 Problem/Product/Validation/Quality 서브그래프 → 원자 에이전트 노드`입니다. Quality Graph는 `Evidence Gate → Cold Critique → Code Arbitration → Targeted Revision → Final Verify → Exit Challenger`를 반복하고, 모든 계약을 통과한 뒤에만 Thesis를 씁니다. [행동 재설계 레인](docs/behavior-redesign.md), [등록 edge 기반 Runtime Graph](docs/runtime-graph.md), [상세 설계](docs/graph-design.md)를 참고하십시오.
 
 정량 가능한 근거 수, 중복도, 점수 합산, 필수 필드와 실행 한도는 코드가 판정합니다. 근본 문제, 구조적 공백, 웨지, 자산-확장 인과, 반증처럼 의미 판단이 필요한 작업만 구조화된 LLM을 호출합니다. 운영에서 GPT를 사용하려면 다음을 설정합니다.
 
@@ -29,9 +29,9 @@ LLM_PROVIDER=codex CODEX_MAX_CONCURRENCY=1 \
 
 아이디어 생성·Cold Critique·Exit Challenger는 같은 Codex 모델이므로 독립적인 교차 모델 검증이 아닙니다. fresh/ephemeral 세션은 문맥 오염만 줄입니다. 운영 책임은 `Codex의 비판 제안 → 코드 Gate의 확인 가능한 사실 판정 → 사람의 논쟁적·고위험 승인`으로 분리합니다.
 
-결과는 “전체 시장의 절대 상위 5개”가 아닙니다. **해당 실행의 검색 쿼리·출처·조사 기간·접근 가능한 원문 범위에서의 근거 기반 상위 후보 최대 5개**입니다. 독립적인 원문 A~C 근거가 2개 미만이면 후보를 억지로 채우지 않습니다.
+결과는 “전체 시장의 절대 상위 5개”가 아닙니다. **해당 실행의 검색 쿼리·출처·조사 기간·접근 가능한 원문 범위에서의 근거 기반 상위 후보 최대 5개**입니다. 최대 구성은 문제 해결형 2개, 행동 재설계형 2개, Wild Bet 1개이며 부족한 레인을 다른 레인으로 억지로 채우지 않습니다. 문제 해결형과 행동 재설계형은 독립 행동 원문 2개, Wild Bet은 최소 1개가 필요합니다.
 
-`VALIDATE`는 아이디어나 시장이 검증됐다는 뜻이 아니라, Wedge 행동 실험을 실행할 가치가 있다는 판정입니다. 전환 행동·결제 의향·반복 사용·축적 자산·확장이 미검증인 상태는 validation hypothesis로 보존하며 그 사실만으로 HOLD하지 않습니다. HOLD는 현재 데이터 접근 불가, 외부 참여 없이는 최초 가치가 없음, 치명적 위험 또는 비수렴처럼 당장 해결할 수 없는 차단에 사용합니다.
+최종 판정은 `VALIDATE_PROBLEM`, `VALIDATE_DELIGHT`, `WILD_BET`, `HOLD`, `REJECT`입니다. 앞의 세 판정은 성공 예측이나 검증 완료가 아니라 각각 불편 제거 실험, 재미·공유·반복 루프 실험, 저비용 고분산 실험을 실행할 가치가 있다는 뜻입니다. HOLD는 현재 데이터 접근 불가, 최초 가치의 외부 공급 의존, 치명적 위험 또는 비수렴에 사용합니다.
 
 LLM 사용량은 단계적으로 제한합니다. 코드가 원문 행동 추출·중복 제거·근거 Gate를 수행하고, 근거순 상위 문제군 최대 10개만 Root/Market/Wedge 분석을 거칩니다. 그중 코드 예비 순위와 다양성 Gate 상위 5개만 Validation/Cold Critique로 이동하며, Cold를 통과한 후보만 Exit Challenger를 호출합니다.
 
@@ -150,6 +150,6 @@ Product Contrarian 제거 후의 정책 재평가는 [policy re-evaluation](docs
 - Codex 생성·Cold Critique·Exit Challenger가 같은 모델이므로 교차 모델 검증이 아닙니다.
 - 자동 live 검색은 선택적 Brave 어댑터에 키가 필요하지만, verified URL 경로는 키 없이 실행됩니다.
 - 공개 웹 원문 접근·저장·재사용의 약관과 저작권 판단은 운영자 책임입니다.
-- `VALIDATE`는 시장 검증 완료가 아니라 수동 행동 실험을 실행할 가치가 있다는 판정입니다.
+- `VALIDATE_PROBLEM`과 `VALIDATE_DELIGHT`는 검증 완료가 아니라 각각 불편 제거 또는 재미 루프 실험을 실행할 가치가 있다는 판정입니다.
 - Product Gate 정책 변경 뒤 실제 live 전체 그래프는 새로 실행하지 않았습니다.
 - 테스트에는 FastAPI `TestClient`의 `httpx` 연동 deprecation 경고 1건이 남아 있으며 기능 실패는 아닙니다.

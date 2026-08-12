@@ -5,6 +5,7 @@ from datetime import datetime
 from pydantic import BaseModel, ConfigDict, Field, HttpUrl, model_validator
 
 from src.domain.models.discovery import SearchQuery
+from src.services.discovery.query_plan import infer_lane_from_query
 
 
 class VerifiedUrlEntry(BaseModel):
@@ -39,5 +40,6 @@ class VerifiedUrlInput(BaseModel):
                 queries[key] = SearchQuery(
                     query=item.discovered_via_query,
                     theme=f"raw-query-{index}",
+                    lane=infer_lane_from_query(item.discovered_via_query),
                 )
         return list(queries.values())

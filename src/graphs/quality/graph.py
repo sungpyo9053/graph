@@ -7,6 +7,7 @@ from typing import Any
 from langgraph.graph import START, StateGraph
 
 from src.agents.atomic import (
+    analyze_behavior_reframe,
     analyze_root_problem,
     analyze_structural_gap_node,
     design_wedge_candidates_node,
@@ -207,9 +208,18 @@ def build_quality_graph(collector: DiscoveryCollector, llm: LLMClient) -> Any:
         before = candidate_fingerprint(dict(state))
         update: dict[str, Any] = {}
         if route == "root_problem_analysis":
-            update.update(
-                await analyze_root_problem(state["cluster"], state["candidate_prefix"], llm)
-            )
+            if state["cluster"].lane == "PROBLEM_SOLVER":
+                update.update(
+                    await analyze_root_problem(
+                        state["cluster"], state["candidate_prefix"], llm
+                    )
+                )
+            else:
+                update.update(
+                    await analyze_behavior_reframe(
+                        state["cluster"], state["candidate_prefix"], llm
+                    )
+                )
         elif route == "market_research":
             market_update = await research_existing_alternatives(
                 collector,
@@ -440,6 +450,7 @@ def _review_packet(state: CandidateGraphState) -> dict[str, Any]:
     validation_plan = state.get("validation_plan")
     return {
         "candidate": {
+            "discovery_lane": cluster.lane,
             "persona": cluster.persona,
             "root_problem": cluster.root_problem,
             "pain": state.get("pain_summary"),
@@ -456,5 +467,10 @@ def _review_packet(state: CandidateGraphState) -> dict[str, Any]:
             else None,
         },
         "evidence": evidence_context(cluster),
-        "instruction": "find at most the strongest actionable issues; do not assign scores or mutate status",
+        "instruction": (
+            "find at most the strongest actionable issues; do not assign scores or mutate status. "
+            "PROBLEM_SOLVER must displace pain/workaround. BEHAVIOR_REDESIGN is not required to "
+            "remove pain; critique immediate visible meaning, voluntary replay, sharing, solo value, "
+            "and ten-second legibility. WILD_BET may have weak evidence but must be cheap and bounded."
+        ),
     }

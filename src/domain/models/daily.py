@@ -30,6 +30,9 @@ class CandidateStatus(StrEnum):
 class CandidateRecord(BaseModel):
     candidate_id: str
     data_origin: Literal["LIVE_PUBLIC_WEB", "TEST_FIXTURE"]
+    discovery_lane: Literal["PROBLEM_SOLVER", "BEHAVIOR_REDESIGN", "WILD_BET"] = (
+        "PROBLEM_SOLVER"
+    )
     root_problem: str
     persona: str
     repeated_behavior: str
@@ -47,7 +50,7 @@ class CandidateRecord(BaseModel):
 
 
 class CandidateRegistry(BaseModel):
-    version: int = 1
+    version: int = 2
     data_origin: Literal["LIVE_PUBLIC_WEB", "TEST_FIXTURE"]
     candidates: list[CandidateRecord] = Field(default_factory=list)
 

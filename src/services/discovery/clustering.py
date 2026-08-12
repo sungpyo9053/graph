@@ -3,7 +3,12 @@ from __future__ import annotations
 import hashlib
 from collections import defaultdict
 
-from src.domain.models.discovery import BehaviorObservation, ProblemCluster, SearchQuery
+from src.domain.models.discovery import (
+    BehaviorObservation,
+    DiscoveryLane,
+    ProblemCluster,
+    SearchQuery,
+)
 from src.domain.models.schemas import Evidence, EvidenceGrade
 from src.domain.policies.duplicates import jaccard
 from src.domain.policies.evidence import independent_qualifying_evidence
@@ -20,6 +25,8 @@ def cluster_observations(
         target = observation.theme
         for existing_theme, existing in grouped.items():
             if not existing:
+                continue
+            if existing[0].lane != observation.lane:
                 continue
             if (
                 jaccard(
@@ -55,12 +62,20 @@ def cluster_observations(
             f"verified sources with explicit frequency: {repeated_count}/{len(evidence)}",
             min(1, repeated_count / 3),
         )
-        workaround = grounded_score(
-            min(15, workaround_count * 5),
-            15,
-            f"verified originals showing an active workaround: {workaround_count}",
-            min(1, workaround_count / 3),
-        )
+        if query.lane == DiscoveryLane.PROBLEM_SOLVER:
+            workaround = grounded_score(
+                min(15, workaround_count * 5),
+                15,
+                f"verified originals showing an active workaround: {workaround_count}",
+                min(1, workaround_count / 3),
+            )
+        else:
+            workaround = grounded_score(
+                min(15, len(evidence) * 5),
+                15,
+                f"verified existing-behavior substrate sources: {len(evidence)}; workaround is not required for {query.lane}",
+                min(1, len(evidence) / 3),
+            )
         behavior_fingerprint = " ".join(
             sorted({item.repeated_behavior[:180] for item in items})
         )
@@ -71,6 +86,7 @@ def cluster_observations(
             ProblemCluster(
                 cluster_id=digest,
                 theme=query.theme,
+                lane=query.lane,
                 observations=items,
                 independent_evidence=evidence,
                 problem_strength=problem,
@@ -92,7 +108,7 @@ def cluster_observations(
 
 def has_minimum_strong_evidence(
     cluster: ProblemCluster,
-    minimum: int = 2,
+    minimum: int | None = None,
     *,
     allow_fixture: bool = False,
 ) -> bool:
@@ -103,4 +119,11 @@ def has_minimum_strong_evidence(
         and item.access_level == "ORIGINAL_VERIFIED"
         and (allow_fixture or not item.is_fixture)
     ]
-    return len(qualifying) >= minimum
+    required = (
+        minimum
+        if minimum is not None
+        else 1
+        if cluster.lane == DiscoveryLane.WILD_BET
+        else 2
+    )
+    return len(qualifying) >= required

@@ -7,6 +7,7 @@ from src.graphs.candidate import (
     build_candidate_graph,
 )
 from src.graphs.discovery.graph import build_discovery_graph
+from src.graphs.problem.graph import build_problem_graph
 from src.graphs.product.graph import build_product_graph
 from src.graphs.quality.graph import build_quality_graph
 from src.graphs.routes import GRAPH_ROUTE_REGISTRY
@@ -27,6 +28,7 @@ def test_documented_route_registry_is_the_runtime_builder_registry() -> None:
         "candidate": build_candidate_graph(collector, llm),
         "finalization": build_candidate_finalization_graph(collector, llm),
         "product": build_product_graph(collector, llm),
+        "problem": build_problem_graph(llm),
         "validation": build_validation_graph(llm),
         "quality": build_quality_graph(collector, llm),
     }
@@ -58,3 +60,12 @@ def test_product_fan_out_fan_in_and_all_revision_back_edges_are_registered() -> 
         == "evidence_gate"
     )
     assert GRAPH_ROUTE_REGISTRY["quality.exit_challenger"]["arbitrate"] == "arbitrate"
+
+
+def test_problem_graph_has_real_lane_branch_and_fan_in() -> None:
+    edges = _edge_pairs(build_problem_graph(DeterministicFakeLLM()))
+
+    assert ("identify_persona", "analyze_root_problem") in edges
+    assert ("identify_persona", "analyze_behavior_opportunity") in edges
+    assert ("analyze_root_problem", "review_problem_evidence") in edges
+    assert ("analyze_behavior_opportunity", "review_problem_evidence") in edges

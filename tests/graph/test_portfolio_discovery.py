@@ -1,10 +1,22 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime
+
 import pytest
 
-from src.domain.models.discovery import DiscoveryMode, DiscoveryRequest
+from src.domain.models.discovery import (
+    DiscoveryLane,
+    DiscoveryMode,
+    DiscoveryRequest,
+    PublicDocument,
+    SearchQuery,
+    SearchResult,
+)
 from src.llm.client import DeterministicFakeLLM, TransientLLMError
-from src.services.discovery.market import select_distinct_top_candidates
+from src.services.discovery.market import (
+    select_balanced_top_candidates,
+    select_distinct_top_candidates,
+)
 from src.services.discovery.orchestrator import PortfolioDiscoveryGraph
 from src.services.discovery.query_plan import build_query_plan
 from src.services.discovery.reporting import render_summary
@@ -17,13 +29,88 @@ def test_open_and_focused_query_plans_are_distinct() -> None:
         DiscoveryRequest(mode=DiscoveryMode.FOCUSED, focus="dental clinic operations")
     )
     assert len(open_queries) == 8
-    assert len(focused_queries) == 4
+    assert len(focused_queries) == 5
     assert all("dental clinic operations" in item.query for item in focused_queries)
+    assert {item.lane for item in open_queries} == set(DiscoveryLane)
+    assert [item.lane for item in open_queries].count(DiscoveryLane.PROBLEM_SOLVER) == 3
+    assert [item.lane for item in open_queries].count(DiscoveryLane.BEHAVIOR_REDESIGN) == 3
+    assert [item.lane for item in open_queries].count(DiscoveryLane.WILD_BET) == 2
 
 
 def test_focused_mode_requires_focus() -> None:
     with pytest.raises(ValueError, match="focused discovery requires"):
         DiscoveryRequest(mode=DiscoveryMode.FOCUSED)
+
+
+@pytest.mark.asyncio
+async def test_behavior_redesign_lane_accepts_repeated_behavior_without_pain_workaround() -> None:
+    class RunningRitualCollector:
+        is_fixture = True
+        provider_name = "behavior-redesign-fixture"
+
+        async def search(self, queries, **kwargs):
+            del kwargs
+            market = any(
+                query.discovery_intent.startswith("research existing alternatives")
+                or query.discovery_intent.startswith("research why current alternatives")
+                for query in queries
+            )
+            texts = (
+                [
+                    "기존 러닝 앱은 거리와 페이스 기록, 경로 공유 기능을 제공합니다.",
+                    "공식 운동 기록 서비스는 완료한 활동과 GPS 지도를 보여줍니다.",
+                ]
+                if market
+                else [
+                    "저는 매일 같은 동네를 달리고 GPS 경로를 기록합니다.",
+                    "나는 매일 산책한 경로를 사진으로 남겨 친구에게 공유한다.",
+                ]
+            )
+            query = queries[0]
+            results = []
+            documents = []
+            for index, text in enumerate(texts, 1):
+                result = SearchResult(
+                    title=f"fixture {index}",
+                    url=f"https://fixture.invalid/redesign/{'market' if market else 'behavior'}/{index}",
+                    description="fixture",
+                    provider=self.provider_name,
+                    query=query.query,
+                    rank=index,
+                    author_key=f"runner-{index}",
+                    is_fixture=True,
+                )
+                results.append(result)
+                documents.append(
+                    PublicDocument(
+                        search_result=result,
+                        access_level="ORIGINAL_VERIFIED",
+                        accessed_at=datetime(2026, 8, 1, tzinfo=UTC),
+                        status_code=200,
+                        content_type="text/html",
+                        extracted_text=text,
+                    )
+                )
+            return results, documents
+
+    query = SearchQuery(
+        query="매일 달리기 경로 기록 공유 습관 후기",
+        theme="running-ritual",
+        lane=DiscoveryLane.BEHAVIOR_REDESIGN,
+    )
+    portfolio = await PortfolioDiscoveryGraph(
+        RunningRitualCollector(),  # type: ignore[arg-type]
+        allow_test_fixture=True,
+        query_plan=[query],
+    ).run(DiscoveryRequest(mode=DiscoveryMode.OPEN))
+
+    assert len(portfolio.candidates) == 1
+    candidate = portfolio.candidates[0]
+    assert candidate.cluster.lane == DiscoveryLane.BEHAVIOR_REDESIGN
+    assert all(item.workaround_observed is None for item in candidate.cluster.independent_evidence)
+    assert candidate.thesis.verdict == "VALIDATE_DELIGHT"
+    assert candidate.thesis.visible_result
+    assert any(event.node.endswith("analyze_behavior_opportunity") for event in portfolio.events)
 
 
 def test_fixture_cannot_enter_live_graph() -> None:
@@ -47,7 +134,7 @@ async def test_fixture_graph_is_deterministic_does_not_pad_and_reports_scope() -
         item.thesis.model_dump(exclude={"is_fixture"}) for item in second.candidates
     ]
     assert first.candidates[0].thesis.is_fixture is True
-    assert first.candidates[0].thesis.verdict in {"RESEARCH", "INTERVIEW", "VALIDATE"}
+    assert first.candidates[0].thesis.verdict == "VALIDATE_PROBLEM"
     assert first.candidate_quality_audits[0].execution_status == "REPORT_COMPLETE"
     assert first.candidate_quality_audits[0].candidate_verdict == first.candidates[0].thesis.verdict
     assert first.source_audit
@@ -83,7 +170,7 @@ async def test_fixture_graph_is_deterministic_does_not_pad_and_reports_scope() -
         "write_problem_wedge_expansion_thesis",
     ):
         assert any(node.endswith(suffix) for node in nodes)
-    assert nodes[-1] == "select_up_to_five_distinct_root_problems"
+    assert nodes[-1] == "select_balanced_up_to_five_candidates"
     assert first.candidates[0].thesis.scores["asset"].unknown is True
     assert first.candidates[0].thesis.scores["expansion"].value == 0
     summary = render_summary(first)
@@ -195,6 +282,74 @@ async def test_final_selection_blocks_same_behavior_and_solution_archetype() -> 
     )
     renamed.thesis = renamed.thesis.model_copy(update={"idea_name": "renamed product"})
     assert len(select_distinct_top_candidates([original, renamed], 5)) == 1
+
+
+@pytest.mark.asyncio
+async def test_final_selection_enforces_two_two_one_lane_portfolio_without_padding() -> None:
+    portfolio = await PortfolioDiscoveryGraph(
+        FixtureDiscoveryCollector(), allow_test_fixture=True
+    ).run(DiscoveryRequest(mode=DiscoveryMode.OPEN))
+    original = portfolio.candidates[0]
+    pool = []
+    specifications = [
+        (DiscoveryLane.PROBLEM_SOLVER, 3),
+        (DiscoveryLane.BEHAVIOR_REDESIGN, 3),
+        (DiscoveryLane.WILD_BET, 2),
+    ]
+    serial = 0
+    labels = [
+        "orchid",
+        "volcano",
+        "harbor",
+        "comet",
+        "lantern",
+        "meadow",
+        "quartz",
+        "tundra",
+    ]
+    for lane, count in specifications:
+        for _ in range(count):
+            serial += 1
+            label = labels[serial - 1]
+            candidate = original.model_copy(deep=True)
+            observations = [
+                item.model_copy(
+                    update={
+                        "lane": lane,
+                        "repeated_behavior": label,
+                        "workaround": f"{label}-method",
+                    }
+                )
+                for item in candidate.cluster.observations
+            ]
+            candidate.cluster = candidate.cluster.model_copy(
+                update={
+                    "cluster_id": f"cluster-{serial}",
+                    "lane": lane,
+                    "root_problem": label,
+                    "observations": observations,
+                }
+            )
+            candidate.thesis = candidate.thesis.model_copy(
+                update={
+                    "discovery_lane": lane,
+                    "idea_name": label,
+                    "root_problem": label,
+                    "repeated_behavior": label,
+                    "current_workaround": f"{label}-method",
+                    "core_user_action": f"{label}-input → {label}-process → {label}-output",
+                    "total_score": 100 - serial,
+                }
+            )
+            pool.append(candidate)
+
+    selected = select_balanced_top_candidates(pool, 5)
+    lanes = [candidate.cluster.lane for candidate in selected]
+
+    assert len(selected) == 5
+    assert lanes.count(DiscoveryLane.PROBLEM_SOLVER) == 2
+    assert lanes.count(DiscoveryLane.BEHAVIOR_REDESIGN) == 2
+    assert lanes.count(DiscoveryLane.WILD_BET) == 1
 
 
 @pytest.mark.asyncio

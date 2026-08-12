@@ -7,6 +7,7 @@ from urllib.parse import urlparse
 
 from src.domain.models.discovery import (
     BehaviorObservation,
+    DiscoveryLane,
     PublicDocument,
     SearchQuery,
 )
@@ -17,7 +18,8 @@ BEHAVIOR_TERMS = re.compile(
     r"(manually|manual|every day|every week|every month|daily|weekly|repeatedly|"
     r"copy(?:ing)? and paste|copy-paste|check multiple|called multiple|spreadsheet|excel|"
     r"수동|매일|매주|매월|매번|매번마다|반복|계속|항상|하루에도|몇 번씩|여러 번|"
-    r"일일이|직접|엑셀|여러 곳|여러 군데|돌아다니|뒤지|찾아보|확인하|기록하|메모하)",
+    r"일일이|직접|엑셀|여러 곳|여러 군데|돌아다니|뒤지|찾아보|확인하|기록하|메모하|"
+    r"달리|뛰|걷|산책|연습|공부|독서|인증|수집|공유하|사진을 찍)",
     re.IGNORECASE,
 )
 WORKAROUND_TERMS = re.compile(
@@ -84,18 +86,27 @@ def extract_observations(
         if excerpt is None:
             exclusions["verified_original_without_repeated_behavior"] += 1
             continue
-        if not WORKAROUND_TERMS.search(excerpt):
-            exclusions["verified_original_without_workaround"] += 1
-            continue
         query = query_map.get(result.query)
         if query is None:
             exclusions["query_metadata_missing"] += 1
+            continue
+        if (
+            query.lane == DiscoveryLane.PROBLEM_SOLVER
+            and not WORKAROUND_TERMS.search(excerpt)
+        ):
+            exclusions["verified_original_without_workaround"] += 1
             continue
         source_role = classify_source_role(result.result_type, excerpt)
         if source_role != EvidenceSourceRole.FIRSTHAND_BEHAVIOR:
             exclusions[f"not_firsthand_behavior:{source_role.value.lower()}"] += 1
             continue
-        grade = _grade(excerpt, source_role)
+        grade = _grade(excerpt, source_role, query.lane)
+        workaround = (
+            excerpt
+            if query.lane == DiscoveryLane.PROBLEM_SOLVER
+            and WORKAROUND_TERMS.search(excerpt)
+            else None
+        )
         host = (urlparse(url).hostname or "unknown").lower()
         item_key = url.split("#", 1)[0]
         published = result.published_at
@@ -104,7 +115,7 @@ def extract_observations(
             grade=grade,
             claim=excerpt,
             behavior_observed=excerpt,
-            workaround_observed=excerpt,
+            workaround_observed=workaround,
             source_type="public_web_original",
             source_name=f"{result.provider}:{host}",
             author_key=result.author_key or f"unknown-author:{item_key}",
@@ -124,12 +135,17 @@ def extract_observations(
         observations.append(
             BehaviorObservation(
                 theme=query.theme,
+                lane=query.lane,
                 persona="unknown: derive from quoted original",
                 repeated_behavior=excerpt,
                 pain=_pain(excerpt),
                 frequency=_match_or_unknown(FREQUENCY, excerpt),
                 measurable_loss=_match_or_unknown(LOSS, excerpt),
-                workaround=excerpt,
+                workaround=(
+                    excerpt
+                    if workaround
+                    else "not applicable: existing behavior is the creative substrate"
+                ),
                 evidence=evidence,
             )
         )
@@ -161,11 +177,17 @@ def classify_source_role(source_type: str, text: str) -> EvidenceSourceRole:
     return EvidenceSourceRole.UNCLASSIFIED
 
 
-def _grade(text: str, source_role: EvidenceSourceRole) -> EvidenceGrade:
+def _grade(
+    text: str,
+    source_role: EvidenceSourceRole,
+    lane: DiscoveryLane,
+) -> EvidenceGrade:
     if source_role != EvidenceSourceRole.FIRSTHAND_BEHAVIOR:
         return EvidenceGrade.D
     if PAYMENT_TERMS.search(text):
         return EvidenceGrade.A
+    if lane != DiscoveryLane.PROBLEM_SOLVER and BEHAVIOR_TERMS.search(text):
+        return EvidenceGrade.B
     if BEHAVIOR_TERMS.search(text) and WORKAROUND_TERMS.search(text):
         return EvidenceGrade.B
     if COMPLAINT_TERMS.search(text):

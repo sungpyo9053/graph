@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections import Counter
 
 from src.domain.models.discovery import (
+    DiscoveryLane,
     MarketStructureResearch,
     PortfolioCandidate,
     ProblemCluster,
@@ -109,9 +110,34 @@ def select_distinct_top_candidates(
     return selected
 
 
+def select_balanced_top_candidates(
+    candidates: list[PortfolioCandidate], maximum: int
+) -> list[PortfolioCandidate]:
+    """Select at most 2 problem, 2 redesign, and 1 wild candidate without padding."""
+    distinct = select_distinct_top_candidates(candidates, len(candidates))
+    quotas = {
+        DiscoveryLane.PROBLEM_SOLVER: 2,
+        DiscoveryLane.BEHAVIOR_REDESIGN: 2,
+        DiscoveryLane.WILD_BET: 1,
+    }
+    counts = {lane: 0 for lane in quotas}
+    selected: list[PortfolioCandidate] = []
+    for candidate in distinct:
+        lane = candidate.cluster.lane
+        if counts[lane] >= quotas[lane]:
+            continue
+        selected.append(candidate)
+        counts[lane] += 1
+        if len(selected) >= maximum:
+            break
+    return selected
+
+
 def _same_candidate_archetype(
     candidate: PortfolioCandidate, existing: PortfolioCandidate
 ) -> bool:
+    if candidate.cluster.lane != existing.cluster.lane:
+        return False
     if jaccard(candidate.cluster.root_problem, existing.cluster.root_problem) >= 0.72:
         return True
     candidate_parts = candidate.thesis.core_user_action.split("→")

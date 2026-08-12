@@ -4,7 +4,7 @@ import operator
 from collections.abc import Awaitable, Callable
 from typing import Annotated, Any, Protocol, TypedDict
 
-from src.agents.models import AssetExpansionAnalysis
+from src.agents.models import AssetExpansionAnalysis, BehaviorReframeAnalysis
 from src.domain.models.discovery import (
     BehaviorObservation,
     CandidateQualityAudit,
@@ -109,6 +109,7 @@ class CandidateGraphState(TypedDict, total=False):
     persona: str
     situation: str
     root_problem: str
+    behavior_reframe: BehaviorReframeAnalysis
     unknowns: list[str]
     validation_hypotheses: list[str]
     problem_route: str

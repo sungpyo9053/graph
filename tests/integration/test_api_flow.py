@@ -27,7 +27,7 @@ async def test_result_and_graph_are_queryable_from_api(client, tmp_path, monkeyp
     assert detail.json()["data_origin"] == "TEST_FIXTURE"
     graph = client.get(f"/api/v1/runs/{portfolio.run_id}/graph")
     assert graph.status_code == 200
-    assert graph.json()["timeline"][-1]["node"] == "select_up_to_five_distinct_root_problems"
+    assert graph.json()["timeline"][-1]["node"] == "select_balanced_up_to_five_candidates"
     report = client.get(f"/api/v1/reports/{portfolio.run_id}")
     assert report.status_code == 200
     assert len(report.json()["problem_wedge_expansion_theses"]) == 1

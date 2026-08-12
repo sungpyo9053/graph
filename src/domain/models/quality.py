@@ -114,6 +114,7 @@ class ExitChallenge(BaseModel):
 
 class DiscoveryContract(BaseModel):
     minimum_independent_behavior_evidence: int = 2
+    minimum_wild_bet_behavior_evidence: int = 1
     require_original_get: bool = True
     require_workaround: bool = True
     forbid_fixture_in_live: bool = True
@@ -122,6 +123,10 @@ class DiscoveryContract(BaseModel):
     require_claim_evidence_links: bool = True
     require_solo_first_user_value: bool = True
     require_feasible_data_access: bool = True
+    require_visible_result_for_delight: bool = True
+    require_ten_second_demo_for_delight: bool = True
+    maximum_wild_bet_duration_days: int = 14
+    maximum_wild_bet_cost_usd: float = 300
     max_critique_rounds: int = 3
     max_revision_rounds: int = 3
     max_exit_challenge_rounds: int = 4

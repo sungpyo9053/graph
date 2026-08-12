@@ -2,38 +2,57 @@ from __future__ import annotations
 
 import re
 
-from src.domain.models.discovery import DiscoveryMode, DiscoveryRequest, SearchQuery
+from src.domain.models.discovery import (
+    DiscoveryLane,
+    DiscoveryMode,
+    DiscoveryRequest,
+    SearchQuery,
+)
 
 # These lanes describe observable behavior only. They intentionally contain no persona,
 # root-problem, product, asset, or expansion answer.
 OPEN_BEHAVIOR_QUERIES = [
-    ("self_saved_information", '"나와의 채팅" 메모 하루에도 몇 번 불편'),
-    ("family_handoff", '가족 돌봄 교대 카톡 메모 인수인계 반복'),
-    ("purchase_proof", '영수증 보증서 매번 찾기 직접 보관 불편'),
-    ("service_dispute", '수리 견적 사진 문자 카톡 기록 분쟁 반복'),
-    ("availability_checking", '여러 곳 전화 직접 확인 재고 예약 반복'),
-    ("document_reentry", '같은 정보 여러 사이트 일일이 입력 반복'),
-    ("local_coordination", '동네 사람 여러 곳 게시 문의 직접 찾기 반복'),
-    ("comparison_workaround", '여러 업체 견적 일일이 비교 엑셀 메모'),
+    (DiscoveryLane.PROBLEM_SOLVER, "self_saved_information", '"나와의 채팅" 메모 하루에도 몇 번 불편'),
+    (DiscoveryLane.PROBLEM_SOLVER, "family_handoff", '가족 돌봄 교대 카톡 메모 인수인계 반복'),
+    (DiscoveryLane.PROBLEM_SOLVER, "comparison_workaround", '여러 업체 견적 일일이 비교 엑셀 메모'),
+    (DiscoveryLane.BEHAVIOR_REDESIGN, "movement_ritual", '매일 걷기 달리기 산책 기록 공유 습관 후기'),
+    (DiscoveryLane.BEHAVIOR_REDESIGN, "collection_ritual", '매일 수집 인증 기록 사진 공유 습관 후기'),
+    (DiscoveryLane.BEHAVIOR_REDESIGN, "practice_ritual", '매일 연습 공부 독서 기록 인증 챌린지 후기'),
+    (DiscoveryLane.WILD_BET, "odd_repeated_ritual", '이상하지만 매일 반복하는 습관 기록 놀이 후기'),
+    (DiscoveryLane.WILD_BET, "tiny_social_ritual", '친구끼리 매일 인증 내기 수집 공유하는 행동 후기'),
 ]
+
+
+def infer_lane_from_query(query: str) -> DiscoveryLane:
+    lowered = query.lower()
+    if any(term in lowered for term in ("이상한", "기묘", "odd", "wild bet")):
+        return DiscoveryLane.WILD_BET
+    delight_terms = ("인증", "수집", "챌린지", "공유", "기록", "습관", "ritual")
+    pain_terms = ("불편", "손실", "우회", "문제", "분쟁", "수작업", "일일이")
+    if any(term in lowered for term in delight_terms) and not any(
+        term in lowered for term in pain_terms
+    ):
+        return DiscoveryLane.BEHAVIOR_REDESIGN
+    return DiscoveryLane.PROBLEM_SOLVER
 
 
 def build_query_plan(request: DiscoveryRequest) -> list[SearchQuery]:
     if request.mode == DiscoveryMode.OPEN:
         return [
-            SearchQuery(query=query, theme=theme)
-            for theme, query in OPEN_BEHAVIOR_QUERIES
+            SearchQuery(query=query, theme=theme, lane=lane)
+            for lane, theme, query in OPEN_BEHAVIOR_QUERIES
         ]
 
     focus = (request.focus or "").strip()
     slug = re.sub(r"[^0-9a-zA-Z가-힣]+", "-", focus).strip("-").lower()[:40] or "focused"
     patterns = [
-        ("repeat", f'{focus} "매번" 직접 반복 불편 후기'),
-        ("workaround", f'{focus} "카톡" "엑셀" 메모 우회 방법'),
-        ("checking", f'{focus} 여러 곳 일일이 확인 전화 검색'),
-        ("payment", f'{focus} 대신 비용 지불 외주 수작업 경험'),
+        (DiscoveryLane.PROBLEM_SOLVER, "repeat", f'{focus} "매번" 직접 반복 불편 후기'),
+        (DiscoveryLane.PROBLEM_SOLVER, "workaround", f'{focus} "카톡" "엑셀" 메모 우회 방법'),
+        (DiscoveryLane.BEHAVIOR_REDESIGN, "ritual", f'{focus} 매일 기록 인증 수집 공유 습관 후기'),
+        (DiscoveryLane.BEHAVIOR_REDESIGN, "play", f'{focus} 친구 경쟁 랭킹 꾸미기 챌린지 후기'),
+        (DiscoveryLane.WILD_BET, "odd", f'{focus} 이상한 습관 매일 반복 놀이 후기'),
     ]
     return [
-        SearchQuery(query=query, theme=f"{slug}:{kind}")
-        for kind, query in patterns
+        SearchQuery(query=query, theme=f"{slug}:{kind}", lane=lane)
+        for lane, kind, query in patterns
     ]

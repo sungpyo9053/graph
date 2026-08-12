@@ -87,7 +87,9 @@ def build_product_graph(collector: DiscoveryCollector, llm: LLMClient) -> Any:
 
     def switching(state: CandidateGraphState) -> dict:
         return evaluation_node(
-            "switching_score", evaluate_switching(state["cluster"]), state["candidate_prefix"]
+            "switching_score",
+            evaluate_switching(state["cluster"], state["wedge_candidates"][0]),
+            state["candidate_prefix"],
         )
 
     async def asset(state: CandidateGraphState) -> dict:

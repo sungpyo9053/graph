@@ -50,6 +50,7 @@ def render_review_packet(result: DailyRunResult) -> str:
 - 중복 제외 수: {len(result.duplicate_candidates)}
 - 근거 부족 제외 수: {insufficient}
 - 오늘 검토할 후보 수: {len(result.review_candidates)} / 최대 5개
+- 레인 구성 상한: 문제 해결형 2 / 행동 재설계형 2 / Wild Bet 1
 
 ## 오늘 생성한 검색 쿼리
 
@@ -79,6 +80,7 @@ def _render_candidate(index: int, change: DailyCandidateChange) -> str:
     next_action = thesis.next_action if thesis else "추가 독립 원문 근거를 수집한다"
     return f"""### {index}. [{change.classification}] {record.candidate_id}
 
+- 탐색 레인: {record.discovery_lane}
 - 근본 문제: {record.root_problem}
 - 사용자: {record.persona}
 - 반복 행동: {record.repeated_behavior}

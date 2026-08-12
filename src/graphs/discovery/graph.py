@@ -35,7 +35,10 @@ from src.graphs.routes import DISCOVERY_ROUTES
 from src.graphs.state import CandidateGraphState, DiscoveryCollector, PortfolioGraphState
 from src.llm.client import LLMClient, LLMError
 from src.observability.heartbeat import reset_invocation_context, set_invocation_context
-from src.services.discovery.market import select_distinct_top_candidates
+from src.services.discovery.market import (
+    select_balanced_top_candidates,
+    select_distinct_top_candidates,
+)
 
 
 def build_discovery_graph(collector: DiscoveryCollector, llm: LLMClient) -> Any:
@@ -103,7 +106,7 @@ def build_discovery_graph(collector: DiscoveryCollector, llm: LLMClient) -> Any:
 
     async def analyze_candidates(state: PortfolioGraphState) -> dict:
         started, clock = datetime.now(UTC), perf_counter()
-        clusters = sorted(
+        ordered_clusters = sorted(
             state["eligible_clusters"],
             key=lambda item: (
                 item.preliminary_score,
@@ -111,7 +114,22 @@ def build_discovery_graph(collector: DiscoveryCollector, llm: LLMClient) -> Any:
                 item.cluster_id,
             ),
             reverse=True,
-        )[:10]
+        )
+        research_quotas = {
+            "PROBLEM_SOLVER": 4,
+            "BEHAVIOR_REDESIGN": 4,
+            "WILD_BET": 2,
+        }
+        research_counts = {key: 0 for key in research_quotas}
+        clusters = []
+        for cluster in ordered_clusters:
+            lane = str(cluster.lane)
+            if research_counts[lane] >= research_quotas[lane]:
+                continue
+            clusters.append(cluster)
+            research_counts[lane] += 1
+            if len(clusters) == 10:
+                break
 
         async def run_one(index: int, cluster: Any) -> CandidateGraphState:
             token = set_invocation_context(state["run_id"], cluster.cluster_id)
@@ -185,15 +203,28 @@ def build_discovery_graph(collector: DiscoveryCollector, llm: LLMClient) -> Any:
             reverse=True,
         )
         preselected: list[CandidateGraphState] = []
+        final_quotas = {
+            "PROBLEM_SOLVER": 2,
+            "BEHAVIOR_REDESIGN": 2,
+            "WILD_BET": 1,
+        }
+        final_counts = {key: 0 for key in final_quotas}
         for item in ranked:
             if any(
-                jaccard(item["root_problem"], existing["root_problem"]) >= 0.72
+                item["cluster"].lane == existing["cluster"].lane
+                and jaccard(item["root_problem"], existing["root_problem"]) >= 0.72
                 for existing in preselected
             ):
                 item["next_route"] = "hold"
                 item["error_message"] = "not selected: duplicate root-problem archetype"
                 continue
+            lane = str(item["cluster"].lane)
+            if final_counts[lane] >= final_quotas[lane]:
+                item["next_route"] = "hold"
+                item["error_message"] = f"not selected: {lane} daily lane quota reached"
+                continue
             preselected.append(item)
+            final_counts[lane] += 1
             if len(preselected) == state["request"].max_candidates:
                 break
         selected_ids = {item["cluster"].cluster_id for item in preselected}
@@ -295,7 +326,7 @@ def build_discovery_graph(collector: DiscoveryCollector, llm: LLMClient) -> Any:
                         if final_route == "reject"
                         else "HOLD"
                         if final_route in {"hold", "human_review"}
-                        else "RESEARCH"
+                        else "REJECT"
                     ),
                     strongest_objection=result.get("strongest_objection", ""),
                     terminal_reason=(
@@ -329,7 +360,9 @@ def build_discovery_graph(collector: DiscoveryCollector, llm: LLMClient) -> Any:
                 PortfolioCandidate(rank=1, cluster=result["cluster"], market_structure=market, thesis=thesis)
             )
         evaluated = select_distinct_top_candidates(candidates, len(candidates))
-        selected = evaluated[: state["request"].max_candidates]
+        selected = select_balanced_top_candidates(
+            candidates, state["request"].max_candidates
+        )
         for index, candidate in enumerate(selected, 1):
             candidate.rank = index
         return {
@@ -342,10 +375,10 @@ def build_discovery_graph(collector: DiscoveryCollector, llm: LLMClient) -> Any:
             "candidate_quality_audits": quality_audits,
             "trace": [
                 trace(
-                    "select_up_to_five_distinct_root_problems",
+                    "select_balanced_up_to_five_candidates",
                     started,
                     clock,
-                    f"selected={len(selected)} never_padded=true",
+                    f"selected={len(selected)} quotas=2_problem+2_redesign+1_wild never_padded=true",
                 )
             ],
         }

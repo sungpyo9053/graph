@@ -68,9 +68,9 @@ class EvidenceSourceRole(StrEnum):
 
 
 class FinalVerdict(StrEnum):
-    RESEARCH = "RESEARCH"
-    INTERVIEW = "INTERVIEW"
-    VALIDATE = "VALIDATE"
+    VALIDATE_PROBLEM = "VALIDATE_PROBLEM"
+    VALIDATE_DELIGHT = "VALIDATE_DELIGHT"
+    WILD_BET = "WILD_BET"
     HOLD = "HOLD"
     REJECT = "REJECT"
 
@@ -167,6 +167,12 @@ class WedgeCandidate(BaseModel):
     ] = "UNKNOWN"
     expected_steps_removed: int | None = Field(default=None, ge=0)
     external_form_reentry_required: bool | None = None
+    instant_visible_result: bool | None = None
+    repeat_trigger: str = "unknown"
+    social_loop: str = "unknown"
+    ten_second_demo: bool | None = None
+    network_amplification: bool | None = None
+    validation_cost_usd: float | None = Field(default=None, ge=0)
     complexity: str
 
 
@@ -220,12 +226,19 @@ class ThesisEvidence(BaseModel):
 
 
 class ProblemWedgeExpansionThesis(BaseModel):
+    discovery_lane: Literal["PROBLEM_SOLVER", "BEHAVIOR_REDESIGN", "WILD_BET"] = (
+        "PROBLEM_SOLVER"
+    )
     idea_name: str
     one_line_thesis: str
     repeated_behavior: str
     frequency: str
     measurable_loss: str
     current_workaround: str
+    behavior_reframe: str = "not applicable"
+    visible_result: str = "unknown"
+    repeat_trigger: str = "unknown"
+    social_loop: str = "unknown"
     surface_pain: str
     root_problem: str
     persona: str
@@ -252,6 +265,19 @@ class ProblemWedgeExpansionThesis(BaseModel):
     unknowns: list[str]
     assumptions: list[str]
     is_fixture: bool = False
+
+    @model_validator(mode="before")
+    @classmethod
+    def migrate_legacy_verdict(cls, data: Any) -> Any:
+        if not isinstance(data, dict):
+            return data
+        migrated = dict(data)
+        legacy = migrated.get("verdict")
+        if legacy == "VALIDATE":
+            migrated["verdict"] = "VALIDATE_PROBLEM"
+        elif legacy in {"RESEARCH", "INTERVIEW"}:
+            migrated["verdict"] = "HOLD"
+        return migrated
 
 
 class IdeaState(BaseModel):

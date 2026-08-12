@@ -10,8 +10,8 @@ from src.domain.models.schemas import Evidence
 from src.domain.policies.duplicates import jaccard
 
 
-def stable_candidate_id(root_problem: str) -> str:
-    normalized = " ".join(sorted(_semantic_tokens(root_problem)))
+def stable_candidate_id(root_problem: str, lane: str = "PROBLEM_SOLVER") -> str:
+    normalized = f"{lane}::{' '.join(sorted(_semantic_tokens(root_problem)))}"
     return f"candidate-{hashlib.sha256(normalized.encode()).hexdigest()[:16]}"
 
 
@@ -35,10 +35,12 @@ def best_historical_match(
     threshold: float = 0.68,
 ) -> CandidateRecord | None:
     if isinstance(candidate, PortfolioCandidate):
+        lane = str(candidate.cluster.lane)
         root = candidate.cluster.root_problem
         repeated = candidate.thesis.repeated_behavior
         workaround = candidate.thesis.current_workaround
     else:
+        lane = str(candidate.lane)
         root = candidate.root_problem
         repeated = " | ".join(item.repeated_behavior for item in candidate.observations)
         workaround = " | ".join(item.workaround for item in candidate.observations)
@@ -46,6 +48,7 @@ def best_historical_match(
         (
             (candidate_similarity(root, repeated, workaround, record), record)
             for record in records
+            if record.discovery_lane == lane
         ),
         key=lambda item: (item[0], item[1].candidate_id),
         reverse=True,

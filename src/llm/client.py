@@ -99,7 +99,9 @@ class DeterministicFakeLLM:
     def _default_response(task: str, data: dict) -> dict:
         """Deterministic qualitative judgments for offline graph execution."""
         common = {
-            "observed_facts": ["quoted behavior and workaround are present in the input"],
+            "observed_facts": [
+                "quoted repeated behavior is present; workaround requirements depend on the discovery lane"
+            ],
             "inferences": [],
             "assumptions": [],
             "unknowns": ["real-world switching and payment behavior"],
@@ -120,6 +122,15 @@ class DeterministicFakeLLM:
                 "root_problem": "the required state and proof remain fragmented, so the observed person repeatedly reconstructs them",
                 "rationale": "This is inferred only after clustering quoted repeated behavior; it is not supplied by the input.",
                 "confidence": 0.35,
+            }
+        if task == "analyze_behavior_reframe":
+            return {
+                **common,
+                "behavior_opportunity": "the existing repeated behavior can produce a visible collectible result without requiring pain removal",
+                "current_meaning": "the behavior is currently recorded mainly as completion or numeric progress",
+                "reframe_axes": ["COLLECTION", "PROGRESSION", "SHARING"],
+                "rationale": "The opportunity is inferred from repeated behavior only; delight and sharing remain unvalidated.",
+                "confidence": 0.3,
             }
         if task == "analyze_structural_gap":
             count = len(data.get("alternatives", []))
@@ -156,6 +167,12 @@ class DeterministicFakeLLM:
                     "behavior_displacement": "REMOVES_STEP",
                     "expected_steps_removed": 1,
                     "external_form_reentry_required": False,
+                    "instant_visible_result": True,
+                    "repeat_trigger": "the next completed behavior visibly changes the result",
+                    "social_loop": "the result can be compared or shared without requiring another user",
+                    "ten_second_demo": True,
+                    "network_amplification": True,
+                    "validation_cost_usd": 100,
                     "complexity": "LOW"
                 }],
                 "rationale": "The candidate is constrained to one input, one process, and one decision-relevant output.",

@@ -6,6 +6,7 @@ import pytest
 
 from src.domain.models.discovery import (
     BehaviorObservation,
+    DiscoveryLane,
     DiscoveryMode,
     DiscoveryRequest,
     MarketStructureResearch,
@@ -311,6 +312,102 @@ def test_final_verify_blocks_known_no_displacement() -> None:
         check for check in result.checks
         if check.name == "behavior_displacement_not_disproven"
     ).passed is False
+
+
+def test_behavior_redesign_gate_does_not_require_pain_or_workaround_displacement() -> None:
+    state = _state()
+    evidence = [
+        item.model_copy(update={"workaround_observed": None})
+        for item in state["cluster"].independent_evidence
+    ]
+    observations = [
+        item.model_copy(
+            update={
+                "lane": DiscoveryLane.BEHAVIOR_REDESIGN,
+                "workaround": "not applicable: existing behavior is the substrate",
+                "evidence": evidence[index],
+            }
+        )
+        for index, item in enumerate(state["cluster"].observations)
+    ]
+    state["cluster"] = state["cluster"].model_copy(
+        update={
+            "lane": DiscoveryLane.BEHAVIOR_REDESIGN,
+            "observations": observations,
+            "independent_evidence": evidence,
+        }
+    )
+    state["selected_wedge"] = state["selected_wedge"].model_copy(
+        update={
+            "behavior_displacement": "NO_DISPLACEMENT",
+            "instant_visible_result": True,
+            "ten_second_demo": True,
+            "repeat_trigger": "the visible territory changes after every run",
+            "social_loop": "friends compare territories",
+            "network_amplification": True,
+        }
+    )
+
+    gate = evaluate_evidence_gate(state, DiscoveryContract())
+    product = evaluate_product_testability(state["cluster"], state["selected_wedge"])
+    verified = final_verify(state, DiscoveryContract())
+
+    assert gate.passed is True
+    assert product.route == "DESIGN_VALIDATION"
+    assert verified.passed is True
+
+
+def test_wild_bet_allows_one_behavior_source_only_when_test_is_cheap_and_bounded() -> None:
+    state = _state()
+    evidence = state["cluster"].independent_evidence[:1]
+    state["cluster"] = state["cluster"].model_copy(
+        update={
+            "lane": DiscoveryLane.WILD_BET,
+            "independent_evidence": evidence,
+            "observations": state["cluster"].observations[:1],
+        }
+    )
+    state["selected_wedge"] = state["selected_wedge"].model_copy(
+        update={"validation_cost_usd": 100}
+    )
+
+    assert evaluate_evidence_gate(state, DiscoveryContract()).passed is True
+    assert final_verify(state, DiscoveryContract()).passed is True
+
+    expensive = state["selected_wedge"].model_copy(
+        update={"validation_cost_usd": 500}
+    )
+    state["selected_wedge"] = expensive
+    assert final_verify(state, DiscoveryContract()).passed is False
+
+
+def test_delight_arbitration_does_not_require_pain_displacement_or_verified_expansion() -> None:
+    state = _state()
+    state["cluster"] = state["cluster"].model_copy(
+        update={"lane": DiscoveryLane.BEHAVIOR_REDESIGN}
+    )
+    state["selected_wedge"] = state["selected_wedge"].model_copy(
+        update={
+            "instant_visible_result": True,
+            "repeat_trigger": "every run changes the visible territory",
+            "ten_second_demo": True,
+            "social_loop": "friends compare territories",
+            "network_amplification": True,
+        }
+    )
+    no_displacement = _finding(CritiqueCategory.NO_BEHAVIOR_CHANGE)
+    fake_asset = _finding(
+        CritiqueCategory.FAKE_ASSET,
+        finding_id="asset-finding",
+    )
+
+    results, route = arbitrate_findings(
+        [no_displacement, fake_asset], state
+    )
+
+    assert results[0].verdict == "FALSE_POSITIVE"
+    assert results[1].actual_route == "validation_hypothesis"
+    assert route == "final_verify"
 
 
 def test_same_blocking_root_finding_stops_after_two_rounds() -> None:

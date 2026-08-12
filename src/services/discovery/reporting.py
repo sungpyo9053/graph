@@ -38,7 +38,7 @@ def render_summary(portfolio: DiscoveryPortfolio) -> str:
     )
     candidate_lines = (
         "\n".join(
-            f"- {item.rank}. {item.thesis.idea_name} — {item.thesis.total_score}/100, "
+            f"- {item.rank}. [{item.cluster.lane}] {item.thesis.idea_name} — {item.thesis.total_score}/100, "
             f"{item.thesis.verdict}, verified evidence {len(item.thesis.evidence)}"
             for item in portfolio.candidates
         )
@@ -119,6 +119,7 @@ def render_candidate(candidate: PortfolioCandidate) -> str:
 
 ## 1. 아이디어 이름
 {thesis.idea_name}
+- 탐색 레인: {thesis.discovery_lane}
 
 ## 2. 한 줄 논제
 {thesis.one_line_thesis}
@@ -190,7 +191,7 @@ def render_candidate(candidate: PortfolioCandidate) -> str:
 
 ## 19. 최종 판정
 {thesis.verdict}
-{"VALIDATE는 검증 완료가 아니라 Wedge 행동 실험을 실행할 가치가 있다는 뜻이다." if str(thesis.verdict) == "VALIDATE" else ""}
+{"VALIDATE_PROBLEM/VALIDATE_DELIGHT는 검증 완료가 아니라 각각 문제 해결 또는 재미 루프 실험을 실행할 가치가 있다는 뜻이다." if str(thesis.verdict) in {"VALIDATE_PROBLEM", "VALIDATE_DELIGHT"} else ""}
 
 ## 20. 다음 행동 하나
 {thesis.next_action}

@@ -30,12 +30,14 @@ class DailyDiscoveryProcessor:
         registry = self.store.load(data_origin=portfolio.data_origin)
         previous_records = deepcopy(registry.candidates)
         changes: list[DailyCandidateChange] = []
-        action_count = 0
+        action_quotas = {"PROBLEM_SOLVER": 2, "BEHAVIOR_REDESIGN": 2, "WILD_BET": 1}
+        action_counts = {key: 0 for key in action_quotas}
         pool = portfolio.evaluated_candidates or portfolio.candidates
         for candidate in pool:
+            lane = str(candidate.cluster.lane)
             match = best_historical_match(candidate, registry.candidates)
             if match is None:
-                if action_count >= 5:
+                if action_counts[lane] >= action_quotas[lane]:
                     continue
                 record = _record_from_candidate(candidate, portfolio.data_origin, day)
                 registry.candidates.append(record)
@@ -45,7 +47,7 @@ class DailyDiscoveryProcessor:
                     evidence_added=len(record.evidence),
                     reason="no semantically matching root problem in the complete candidate registry",
                 ))
-                action_count += 1
+                action_counts[lane] += 1
                 continue
             previous = deepcopy(match)
             merged, added = merge_independent_evidence(
@@ -60,7 +62,7 @@ class DailyDiscoveryProcessor:
                     "same problem with no new independent URL, author, or original content",
                 ))
                 continue
-            if action_count >= 5:
+            if action_counts[lane] >= action_quotas[lane]:
                 continue
             match.evidence = merged
             match.latest_evidence_at = day
@@ -80,7 +82,7 @@ class DailyDiscoveryProcessor:
                 match.rejection_reasons = []
                 reason = f"{added} new independent item(s) now satisfy the prior evidence rejection"
             changes.append(_change(classification, match, previous, added, reason))
-            action_count += 1
+            action_counts[lane] += 1
 
         rejected_changes = self._record_rejected_clusters(
             portfolio.rejected_clusters,
@@ -103,7 +105,7 @@ class DailyDiscoveryProcessor:
         rejected = [
             item for item in changes if item.classification == DailyClassification.REJECTED
         ]
-        review = sorted(
+        ordered_review = sorted(
             [*new, *updated],
             key=lambda item: (
                 item.candidate.score,
@@ -111,7 +113,18 @@ class DailyDiscoveryProcessor:
                 item.candidate.candidate_id,
             ),
             reverse=True,
-        )[:5]
+        )
+        quotas = {"PROBLEM_SOLVER": 2, "BEHAVIOR_REDESIGN": 2, "WILD_BET": 1}
+        counts = {key: 0 for key in quotas}
+        review: list[DailyCandidateChange] = []
+        for change in ordered_review:
+            lane = change.candidate.discovery_lane
+            if counts[lane] >= quotas[lane]:
+                continue
+            review.append(change)
+            counts[lane] += 1
+            if len(review) == 5:
+                break
         limitations = [
             *portfolio.warnings,
             "Historical matching is deterministic lexical similarity; semantic paraphrases may need human merge review.",
@@ -186,8 +199,11 @@ def _record_from_candidate(
 ) -> CandidateRecord:
     thesis = candidate.thesis
     return CandidateRecord(
-        candidate_id=stable_candidate_id(candidate.cluster.root_problem),
+        candidate_id=stable_candidate_id(
+            candidate.cluster.root_problem, str(candidate.cluster.lane)
+        ),
         data_origin=data_origin,
+        discovery_lane=candidate.cluster.lane,
         root_problem=candidate.cluster.root_problem,
         persona=thesis.persona,
         repeated_behavior=thesis.repeated_behavior,
@@ -210,8 +226,9 @@ def _record_from_rejected(
     reason: str,
 ) -> CandidateRecord:
     return CandidateRecord(
-        candidate_id=stable_candidate_id(cluster.root_problem),
+        candidate_id=stable_candidate_id(cluster.root_problem, str(cluster.lane)),
         data_origin=data_origin,
+        discovery_lane=cluster.lane,
         root_problem=cluster.root_problem,
         persona=cluster.persona,
         repeated_behavior=" | ".join(item.repeated_behavior for item in cluster.observations),

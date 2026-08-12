@@ -9,20 +9,23 @@
 ```mermaid
 flowchart TD
     S((START)) --> Q[행동 중심 검색어 생성<br/>plan_queries]
-    Q --> C[collect_behavior_sources]
+    Q --> L{탐색 레인}
+    L -->|PROBLEM_SOLVER| C[collect_behavior_sources]
+    L -->|BEHAVIOR_REDESIGN| C
+    L -->|WILD_BET| C
     C --> N[사실·인용문 추출<br/>normalize_evidence]
     N --> W[행동·우회 방법 추출<br/>detect_workarounds]
     W --> D[행동 기준 문제 군집화<br/>deduplicate_root_problems]
     D --> G{review_problem_evidence}
     G -->|근거 미달| Q
-    G -->|A-C 독립 원문 2개 이상| O[orchestrate_candidate_subgraphs]
+    G -->|Problem/Redesign 2개<br/>Wild 1개| O[orchestrate_candidate_subgraphs]
     O -->|후보별 병렬 실행| P1[Candidate Graph 1]
     O -->|후보별 병렬 실행| P2[Candidate Graph 2]
     O -->|후보별 병렬 실행| PN[Candidate Graph N]
     P1 --> M[merge candidate results]
     P2 --> M
     PN --> M
-    M --> R[select_distinct_candidates]
+    M --> R[select balanced candidates<br/>2 problem + 2 redesign + 1 wild]
     R --> V[save_result]
     V --> E((END))
 ```
@@ -49,13 +52,16 @@ flowchart LR
 flowchart LR
     S((START)) --> P[extract_pain]
     P --> U[identify_persona<br/>structured LLM]
-    U --> R[analyze_root_problem<br/>structured LLM]
+    U --> L{lane}
+    L -->|PROBLEM_SOLVER| R[analyze_root_problem<br/>structured LLM]
+    L -->|BEHAVIOR_REDESIGN/WILD_BET| B[analyze_behavior_opportunity<br/>structured LLM]
     R --> G{review_problem_evidence<br/>code gate}
+    B --> G
     G -->|pass| E((END / market))
     G -->|fail| X((END / reject))
 ```
 
-`extract_pain`은 원문에 존재하는 손실 표현만 정규화한다. 사용자와 근본 문제는 입력에서 받지 않고 각각 `identify_persona`, `analyze_root_problem`이 원문 인용만 읽어 생성한다. 독립 원문 수와 필수 데이터는 코드가 최종 판정한다.
+`extract_pain`은 문제 해결형에서만 손실 근거로 사용한다. 행동 재설계형과 Wild Bet은 고통이나 우회 행동을 요구하지 않고, 관찰된 반복 행동에서 경쟁·수집·정체성·공유·진행감으로 바꿀 수 있는 의미 축만 분석한다. Wedge는 이후 별도 노드가 생성한다.
 
 ## Product Graph
 
@@ -138,9 +144,9 @@ flowchart TD
     T --> E((END))
 ```
 
-`DiscoveryContract`는 시작 시 독립 근거 수, 원문 GET, 우회 행동, fixture/결론 힌트 금지, claim-evidence 연결, 첫 사용자 가치, 데이터 접근 가능성과 반복 상한을 고정한다. `cold_critique`와 `exit_challenger`는 각각 새 `codex exec --ephemeral --sandbox read-only` 프로세스로 실행하고 이전 critique를 입력하지 않는다. 비판자는 finding만 제안하며 점수나 상태를 바꾸지 않는다. 코드는 원문·근거 ID·계약 조건을 먼저 적용하고 비판자의 `recommended_route`를 복사하지 않는다.
+`DiscoveryContract`는 시작 시 레인별 독립 근거 수, 원문 GET, 문제 해결형의 우회 행동, 행동 재설계형의 즉시 결과·반복 동기·10초 전달성, Wild Bet의 14일·저비용 한도, fixture/결론 힌트 금지와 반복 상한을 고정한다. `cold_critique`와 `exit_challenger`는 각각 새 read-only Codex 프로세스로 실행한다.
 
-`REPORT_COMPLETE`는 그래프 실행/보고서 작성의 성공 상태다. 아이디어 품질 판정은 별도 `RESEARCH`, `INTERVIEW`, `VALIDATE`, `HOLD`, `REJECT`다. `VALIDATE`는 검증 완료가 아니라 Wedge 행동 실험 대상으로 승인됐다는 뜻이다. 전환·결제·반복 사용·자산·확장 미검증은 HOLD 사유가 아니라 unknown과 validation hypothesis다. 반복 finding은 category만 세지 않고 category, affected claim, root cause, 코드 actual route, evidence scope의 canonical fingerprint로 판정한다.
+`REPORT_COMPLETE`는 그래프 실행/보고서 작성의 성공 상태다. 아이디어 판정은 `VALIDATE_PROBLEM`, `VALIDATE_DELIGHT`, `WILD_BET`, `HOLD`, `REJECT`다. 앞의 세 상태는 성공 판정이 아니라 서로 다른 실험 대상으로 승인했다는 뜻이다. 행동 재설계형에서 고통 미제거, 자산·확장 미검증은 자동 차단 사유가 아니다.
 
 수정은 category별 정확한 노드로 돌아간 후 항상 `evidence_gate`부터 재검증한다. critique/revision은 각각 최대 3회이고, 동일 BLOCKING category가 두 번 나오거나 fingerprint가 변하지 않으면 HOLD한다. Thesis는 `final_verify`와 `exit_challenger`를 모두 통과한 후보에만 작성한다.
 

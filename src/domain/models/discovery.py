@@ -25,6 +25,12 @@ class DiscoveryMode(StrEnum):
     FOCUSED = "focused"
 
 
+class DiscoveryLane(StrEnum):
+    PROBLEM_SOLVER = "PROBLEM_SOLVER"
+    BEHAVIOR_REDESIGN = "BEHAVIOR_REDESIGN"
+    WILD_BET = "WILD_BET"
+
+
 class DiscoveryRequest(BaseModel):
     mode: DiscoveryMode
     focus: str | None = None
@@ -45,6 +51,7 @@ class DiscoveryRequest(BaseModel):
 class SearchQuery(BaseModel):
     query: str
     theme: str
+    lane: DiscoveryLane = DiscoveryLane.PROBLEM_SOLVER
     discovery_intent: str = "find repeated behavior and an observed workaround"
 
 
@@ -73,6 +80,7 @@ class PublicDocument(BaseModel):
 
 class BehaviorObservation(BaseModel):
     theme: str
+    lane: DiscoveryLane = DiscoveryLane.PROBLEM_SOLVER
     persona: str
     repeated_behavior: str
     pain: str
@@ -93,6 +101,7 @@ class MarketStructureResearch(BaseModel):
 class ProblemCluster(BaseModel):
     cluster_id: str
     theme: str
+    lane: DiscoveryLane = DiscoveryLane.PROBLEM_SOLVER
     persona: str = "unknown: derive from verified originals"
     root_problem: str = "unknown: derive after behavior clustering"
     observations: list[BehaviorObservation]
@@ -151,7 +160,7 @@ class CandidateQualityAudit(BaseModel):
         "REPORT_COMPLETE", "HELD", "REJECTED", "NEEDS_MORE_EVIDENCE"
     ]
     candidate_verdict: Literal[
-        "RESEARCH", "INTERVIEW", "VALIDATE", "HOLD", "REJECT"
+        "VALIDATE_PROBLEM", "VALIDATE_DELIGHT", "WILD_BET", "HOLD", "REJECT"
     ]
     strongest_objection: str = ""
     terminal_reason: str
@@ -167,6 +176,19 @@ class CandidateQualityAudit(BaseModel):
     revision_round: int = 0
     visited_nodes: list[str] = Field(default_factory=list)
     final_route: str
+
+    @model_validator(mode="before")
+    @classmethod
+    def migrate_legacy_candidate_verdict(cls, data: object) -> object:
+        if not isinstance(data, dict):
+            return data
+        migrated = dict(data)
+        legacy = migrated.get("candidate_verdict")
+        if legacy == "VALIDATE":
+            migrated["candidate_verdict"] = "VALIDATE_PROBLEM"
+        elif legacy in {"RESEARCH", "INTERVIEW"}:
+            migrated["candidate_verdict"] = "HOLD"
+        return migrated
 
 
 class SourceAuditEntry(BaseModel):

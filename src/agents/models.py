@@ -29,6 +29,14 @@ class RootProblemAnalysis(QualitativeAnalysis):
     confidence: float = Field(ge=0, le=1)
 
 
+class BehaviorReframeAnalysis(QualitativeAnalysis):
+    behavior_opportunity: str
+    current_meaning: str
+    reframe_axes: list[Literal["COMPETITION", "COLLECTION", "IDENTITY", "SHARING", "PROGRESSION"]]
+    rationale: str
+    confidence: float = Field(ge=0, le=1)
+
+
 class StructuralGapAnalysis(QualitativeAnalysis):
     structural_gap: str
     why_unsolved: str

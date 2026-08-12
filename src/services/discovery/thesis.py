@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from urllib.parse import urlparse
 
-from src.domain.models.discovery import MarketStructureResearch, ProblemCluster
+from src.domain.models.discovery import DiscoveryLane, MarketStructureResearch, ProblemCluster
 from src.domain.models.schemas import (
     AccumulatingAsset,
     ExpansionPath,
@@ -69,6 +69,7 @@ def build_thesis(
     )
     validation = validation_override or design_validation(cluster)
     verdict = classify_candidate_verdict(
+        lane=cluster.lane,
         evidence_count=len(evidence),
         total_score=total,
         market=market,
@@ -77,6 +78,7 @@ def build_thesis(
         expansion_paths=expansion_paths,
         causal_gap_verified=causal_gap_verified,
         behavior_ready=frequency != "unknown" and measurable_loss != "unknown",
+        validation=validation,
     )
     thesis_evidence = [
         ThesisEvidence(
@@ -98,9 +100,12 @@ def build_thesis(
         {urlparse(item.url or "").hostname or "unknown" for item in thesis_evidence}
     )
     return ProblemWedgeExpansionThesis(
+        discovery_lane=cluster.lane,
         idea_name=f"{cluster.theme.replace('_', ' ').replace(':', ' / ')} wedge",
         one_line_thesis=(
-            f"{cluster.persona} faces {cluster.root_problem}; test {wedge.expected_output} as the smallest entry wedge."
+            f"{cluster.persona} repeats an existing behavior; test {wedge.expected_output} as a new visible meaning."
+            if cluster.lane != DiscoveryLane.PROBLEM_SOLVER
+            else f"{cluster.persona} faces {cluster.root_problem}; test {wedge.expected_output} as the smallest entry wedge."
         ),
         repeated_behavior=" | ".join(
             dict.fromkeys(item.repeated_behavior for item in observations)
@@ -108,6 +113,14 @@ def build_thesis(
         frequency=frequency,
         measurable_loss=measurable_loss,
         current_workaround=workaround,
+        behavior_reframe=(
+            cluster.root_problem
+            if cluster.lane != DiscoveryLane.PROBLEM_SOLVER
+            else "not applicable"
+        ),
+        visible_result=wedge.expected_output,
+        repeat_trigger=wedge.repeat_trigger,
+        social_loop=wedge.social_loop,
         surface_pain=" | ".join(dict.fromkeys(item.pain for item in observations)),
         root_problem=cluster.root_problem,
         persona=cluster.persona,
@@ -128,17 +141,17 @@ def build_thesis(
             f"approach contributors or communities represented by verified source domains: {', '.join(source_domains)}"
         ),
         strongest_objection=strongest_objection_override or contrarian_objection(cluster, market),
-        kill_conditions=[
-            "fewer than 3 of 10 interviews confirm the behavior occurs at least weekly",
-            "fewer than 2 users replace at least half of the workaround during the concierge test",
-            "required source access is prohibited, unstable, or unavailable",
-        ],
+        kill_conditions=_kill_conditions(cluster.lane),
         validation=validation,
         scores=scores,
         total_score=total,
         confidence=confidence,
         verdict=verdict,
-        next_action=f"recruit 10 {cluster.persona} participants from the verified source communities for interviews",
+        next_action=(
+            f"show a ten-second behavior-reframe prototype to 10 {cluster.persona} participants and measure voluntary replay or sharing"
+            if cluster.lane != DiscoveryLane.PROBLEM_SOLVER
+            else f"recruit 10 {cluster.persona} participants from the verified source communities for interviews"
+        ),
         unknowns=list(dict.fromkeys([
             "willingness to pay",
             "buyer identity",
@@ -156,6 +169,7 @@ def build_thesis(
 
 def classify_candidate_verdict(
     *,
+    lane: DiscoveryLane,
     evidence_count: int,
     total_score: int,
     market: MarketStructureResearch,
@@ -164,16 +178,69 @@ def classify_candidate_verdict(
     expansion_paths: list[ExpansionPath],
     causal_gap_verified: bool,
     behavior_ready: bool,
+    validation: ValidationPlan,
 ) -> FinalVerdict:
     """Business verdict is distinct from a successfully written report."""
-    if evidence_count < 2 or not market.alternatives:
-        return FinalVerdict.RESEARCH
     del assets, expansion_paths, causal_gap_verified
+    if evidence_count < 1:
+        return FinalVerdict.REJECT
+    if lane == DiscoveryLane.BEHAVIOR_REDESIGN:
+        if (
+            evidence_count >= 2
+            and wedge.instant_visible_result is True
+            and wedge.ten_second_demo is True
+            and wedge.solo_first_user_value
+            and wedge.data_access_feasible
+            and wedge.repeat_trigger.strip().lower() != "unknown"
+            and wedge.social_loop.strip().lower() != "unknown"
+            and wedge.network_amplification is True
+        ):
+            return FinalVerdict.VALIDATE_DELIGHT
+        if (
+            wedge.validation_cost_usd is not None
+            and wedge.validation_cost_usd <= 300
+            and validation.duration_days <= 14
+            and wedge.manual_validation_feasible
+        ):
+            return FinalVerdict.WILD_BET
+        return FinalVerdict.HOLD
+    if lane == DiscoveryLane.WILD_BET:
+        if (
+            wedge.validation_cost_usd is not None
+            and wedge.validation_cost_usd <= 300
+            and validation.duration_days <= 14
+            and wedge.manual_validation_feasible
+            and wedge.solo_first_user_value
+        ):
+            return FinalVerdict.WILD_BET
+        return FinalVerdict.HOLD
+    if evidence_count < 2 or not market.alternatives:
+        return FinalVerdict.REJECT
     if not behavior_ready:
-        return FinalVerdict.INTERVIEW
+        return FinalVerdict.HOLD
     if total_score >= 45 and wedge.solo_first_user_value and wedge.data_access_feasible:
-        return FinalVerdict.VALIDATE
-    return FinalVerdict.INTERVIEW
+        return FinalVerdict.VALIDATE_PROBLEM
+    return FinalVerdict.HOLD
+
+
+def _kill_conditions(lane: DiscoveryLane) -> list[str]:
+    if lane == DiscoveryLane.PROBLEM_SOLVER:
+        return [
+            "fewer than 3 of 10 interviews confirm the behavior occurs at least weekly",
+            "fewer than 2 users replace at least half of the workaround during the concierge test",
+            "required source access is prohibited, unstable, or unavailable",
+        ]
+    if lane == DiscoveryLane.BEHAVIOR_REDESIGN:
+        return [
+            "fewer than 3 of 10 target users understand the transformed result within ten seconds",
+            "fewer than 2 of 10 voluntarily repeat or share the behavior within seven days",
+            "the first user receives no visible result without inviting another person",
+        ]
+    return [
+        "the prototype cannot be produced within 14 days and the configured cheap-test budget",
+        "none of 10 exposed target users voluntarily retries, shares, or asks to keep it",
+        "the experiment requires prohibited data or non-consensual external actions",
+    ]
 
 
 def _founder_fit(root_problem: str) -> int:
@@ -225,7 +292,26 @@ def evaluate_wedge_simplicity(wedge: WedgeCandidate) -> Score:
     return grounded_score(8, 10, "one user case produces one decision-relevant result", 0.55)
 
 
-def evaluate_switching(cluster: ProblemCluster) -> Score:
+def evaluate_switching(
+    cluster: ProblemCluster, wedge: WedgeCandidate | None = None
+) -> Score:
+    if cluster.lane != DiscoveryLane.PROBLEM_SOLVER:
+        if wedge is None:
+            return unknown_score(10, "behavior-reframe wedge has not been designed")
+        signals = sum(
+            (
+                wedge.instant_visible_result is True,
+                wedge.ten_second_demo is True,
+                wedge.repeat_trigger.strip().lower() != "unknown",
+                wedge.solo_first_user_value,
+            )
+        )
+        return grounded_score(
+            min(10, signals * 2),
+            10,
+            f"delight-loop testability signals={signals}/4; real replay and sharing remain unvalidated",
+            min(0.6, signals / 8),
+        )
     count = len([item for item in cluster.observations if item.workaround.strip()])
     if count == 0:
         return unknown_score(10, "no observed workaround to replace")
@@ -308,6 +394,14 @@ def evaluate_all_scores(
 def contrarian_objection(
     cluster: ProblemCluster, market: MarketStructureResearch
 ) -> str:
+    if cluster.lane == DiscoveryLane.BEHAVIOR_REDESIGN:
+        return (
+            "the visible reinterpretation may be briefly novel but fail to create voluntary replay or sharing"
+        )
+    if cluster.lane == DiscoveryLane.WILD_BET:
+        return (
+            "the strange concept may earn curiosity clicks without producing any repeat behavior"
+        )
     if not market.alternatives:
         return "the market structure is unknown, so the claimed gap may not exist"
     return (
@@ -317,6 +411,30 @@ def contrarian_objection(
 
 
 def design_validation(cluster: ProblemCluster) -> ValidationPlan:
+    if cluster.lane == DiscoveryLane.BEHAVIOR_REDESIGN:
+        return ValidationPlan(
+            hypothesis="the visible reinterpretation makes users voluntarily repeat or share an existing behavior",
+            target_user=f"10 people already performing: {cluster.persona}",
+            method="show a ten-second clickable or video prototype, then run a seven-day manual replay test",
+            duration_days=7,
+            success_criterion="at least 3 of 10 understand it immediately and at least 2 voluntarily replay or share",
+            failure_criterion="fewer than 2 voluntarily replay or share without reminders",
+            estimated_cost_usd=100,
+            next_action_if_pass="test whether social participation amplifies an already useful solo loop",
+            next_action_if_fail="discard the reframe without changing the underlying behavior evidence",
+        )
+    if cluster.lane == DiscoveryLane.WILD_BET:
+        return ValidationPlan(
+            hypothesis="a strange but legible reinterpretation creates unsolicited replay, sharing, or keep requests",
+            target_user=f"10 people already performing: {cluster.persona}",
+            method="produce one manual sample or ten-second video and expose it in the source community",
+            duration_days=7,
+            success_criterion="at least 2 people voluntarily retry, share, or ask to keep using it",
+            failure_criterion="no voluntary retry, share, or keep request",
+            estimated_cost_usd=100,
+            next_action_if_pass="promote to a behavior-redesign validation with stronger evidence",
+            next_action_if_fail="reject the wild bet after the bounded test",
+        )
     return ValidationPlan(
         hypothesis="target users will replace at least half of the observed workaround with the wedge output",
         target_user=f"10 people matching: {cluster.persona}",
