@@ -22,29 +22,25 @@ def cluster_observations(
     query_by_theme = {item.theme: item for item in queries}
     grouped: dict[str, list[BehaviorObservation]] = defaultdict(list)
     for observation in observations:
-        target = observation.theme
+        # Search context is not a behavioral identity. Every observation starts
+        # separate and only joins a cluster when its meaning-compatible facets do.
+        target = f"{observation.theme}:{observation.evidence.signal_id}"
         for existing_theme, existing in grouped.items():
             if not existing:
                 continue
             if existing[0].lane != observation.lane:
                 continue
-            if (
-                jaccard(
-                    f"{existing[0].repeated_behavior} {existing[0].workaround}",
-                    f"{observation.repeated_behavior} {observation.workaround}",
-                )
-                >= 0.62
-            ):
+            if behavior_cluster_compatible(existing[0], observation):
                 target = existing_theme
                 break
         grouped[target].append(observation)
 
     clusters: list[ProblemCluster] = []
-    for theme, items in grouped.items():
+    for _group_key, items in grouped.items():
         evidence = independent_qualifying_evidence(item.evidence for item in items)
         if not evidence:
             continue
-        query = query_by_theme.get(theme) or query_by_theme.get(items[0].theme)
+        query = query_by_theme.get(items[0].theme)
         if query is None:
             continue
         a_count = sum(item.grade == EvidenceGrade.A for item in evidence)
@@ -103,6 +99,36 @@ def cluster_observations(
             item.cluster_id,
         ),
         reverse=True,
+    )
+
+
+def behavior_cluster_compatible(
+    left: BehaviorObservation,
+    right: BehaviorObservation,
+) -> bool:
+    """Require shared behavioral meaning, not just a shared verb such as 'record'."""
+    left_text = f"{left.repeated_behavior} {left.workaround}"
+    right_text = f"{right.repeated_behavior} {right.workaround}"
+    if jaccard(left_text, right_text) >= 0.62:
+        return True
+
+    motivation_overlap = bool(set(left.motivations) & set(right.motivations))
+    target_overlap = bool(set(left.target_objects) & set(right.target_objects))
+    reward_overlap = bool(set(left.expected_rewards) & set(right.expected_rewards))
+    specific_trigger_overlap = bool(
+        (set(left.repeat_triggers) - {"daily_routine"})
+        & (set(right.repeat_triggers) - {"daily_routine"})
+    )
+
+    # Conflicting concrete targets outweigh generic surface verbs like taking a
+    # photo, posting, or recording every day.
+    if left.target_objects and right.target_objects and not target_overlap:
+        return False
+
+    # Unknown facets never justify a merge. With known facets, target identity
+    # plus at least one matching motivation, reward, or trigger is required.
+    return target_overlap and (
+        motivation_overlap or reward_overlap or specific_trigger_overlap
     )
 
 

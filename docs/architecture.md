@@ -4,6 +4,11 @@
 
 `src/search`는 검색 공급자, `src/collectors/public_web.py`는 원문 접근, `src/collectors/social_public.py`는 공개 SNS URL의 플랫폼·검증 가능한 계정 경계를 식별합니다. `src/services/discovery`는 query plan·SNS 신호/행동 추출·군집화·시장 구조 조사·논제 작성·보고를 담당합니다. 외부 경계와 결과는 모두 Pydantic으로 검증합니다. API/UI는 `output/<run_id>/portfolio.json`을 읽기만 하며 외부 검색을 시작하지 않습니다.
 
+행동 군집은 동일 검색어 또는 `사진을 찍는다`, `기록한다` 같은 표면 동작만으로
+합치지 않는다. 코드가 원문에서 `행동 동기`, `대상`, `기대 보상`, `반복 계기`를
+보수적으로 정규화하고, 구체 대상과 의미가 호환되거나 원문 유사도가 충분할 때만
+병합한다. facet이 unknown이면 검색 맥락만으로 병합하지 않는다.
+
 프로덕션 의존 방향은 `CLI → (선택적 SearchProvider 또는 raw verified URLs) → PublicWebCollector → PortfolioDiscoveryGraph → SNS subgraph + lane-aware extraction/clustering/thesis → reporting`입니다. SNS subgraph는 공개 원문 신호를 `불편 제거 / 행동 게임화 / 공유·경쟁·수집` 세 원형으로 실제 fan-out/fan-in합니다. Discovery는 `PROBLEM_SOLVER`, `BEHAVIOR_REDESIGN`, `WILD_BET` 세 레인으로 이어지며 최종 포트폴리오는 각각 최대 2/2/1개입니다. Brave는 선택 사항이며 `discover-from-urls`는 검색 API 키 없이 실제 원문을 GET합니다.
 
 ## 상태와 실행 이력

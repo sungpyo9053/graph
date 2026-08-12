@@ -50,8 +50,7 @@ LOSS = re.compile(
 FIRSTHAND_MARKERS = re.compile(
     r"(?:\b(?:i|we|my|our)\b|i['’]?ve|i\s+(?:had to|keep|kept|called|paid|bought|"
     r"recorded|checked|used)|(?<![가-힣])(?:저는|제가|나는|내가|우리는|우리가)(?![가-힣])|"
-    r"(?:했어요|했습니다|했다|했는데|해봤|걸렸어요|걸렸다|연락했|전화했|"
-    r"기록했|쓰고\s*있|사용\s*중)|나중에는|경험상)",
+    r"(?<![가-힣])저도(?![가-힣])|나중에는|경험상|개인적으로|제 경우)",
     re.IGNORECASE,
 )
 PROCEDURAL_MARKERS = re.compile(
@@ -62,6 +61,44 @@ PROCEDURAL_MARKERS = re.compile(
 )
 OFFICIAL_SOURCE_TYPES = {"official", "company", "product", "government", "policy"}
 SECONDARY_SOURCE_TYPES = {"news", "report", "research", "article"}
+
+BEHAVIOR_FACET_PATTERNS: dict[str, tuple[tuple[str, str], ...]] = {
+    "motivations": (
+        (r"감사|고맙|선물받|얻어먹", "gratitude"),
+        (r"하늘|풍경|날씨|꽃|관찰", "everyday_observation"),
+        (r"완성|그림|그리기|작품", "creative_completion"),
+        (r"가족|친구|함께|소통", "social_connection"),
+        (r"추억|기억|회고", "memory_preservation"),
+        (r"달리|뛰|걷|산책|GPS|경로", "movement_tracking"),
+        (r"competitor|경쟁.{0,10}(?:가격|재고)|가격.{0,10}품절", "competitive_monitoring"),
+    ),
+    "target_objects": (
+        (r"감사|고맙|선물받|얻어먹|밥|빵", "gratitude_moment"),
+        (r"하늘|구름|풍경|날씨|꽃", "sky_or_nature"),
+        (r"그림|그리기|작품", "creative_work"),
+        (r"가족|부모|아이", "family_daily_life"),
+        (r"달리|뛰|걷|산책|GPS|경로", "movement_route"),
+        (r"competitor|storefront|shop|경쟁.{0,10}(?:상품|가격)|재고|품절", "competitor_listing"),
+    ),
+    "expected_rewards": (
+        (r"감사|고맙", "gratitude_reflection"),
+        (r"달력|캘린더|모아|모으|누적|일년|일 년|10년", "longitudinal_collection"),
+        (r"완성|마무리", "completion_proof"),
+        (r"가족|친구|함께|소통", "social_connection"),
+        (r"공유|스토리|게시판|올렸|올리는", "visible_sharing"),
+        (r"GPS|경로|거리|페이스", "visible_route_progress"),
+        (r"price|stock|sold.?out|가격|재고|품절", "state_change_awareness"),
+    ),
+    "repeat_triggers": (
+        (r"선물받|얻어먹|고마운|감사한", "kindness_event"),
+        (r"매일.{0,20}하늘|하늘.{0,20}매일|하루도.{0,20}하늘", "daily_sky"),
+        (r"완성.{0,20}사진|마무리.{0,20}사진", "creative_completion"),
+        (r"매일|하루에 한|하루 한|365", "daily_routine"),
+        (r"스토리|게시판|공유", "social_posting"),
+        (r"달리|뛰|걷|산책", "movement_session"),
+        (r"every day|weekly|daily|매주", "scheduled_routine"),
+    ),
+}
 
 
 def extract_observations(
@@ -146,10 +183,23 @@ def extract_observations(
                     if workaround
                     else "not applicable: existing behavior is the creative substrate"
                 ),
+                **infer_behavior_facets(excerpt),
                 evidence=evidence,
             )
         )
     return observations, exclusions
+
+
+def infer_behavior_facets(text: str) -> dict[str, list[str]]:
+    """Extract conservative clustering facets without inventing product conclusions."""
+    return {
+        dimension: [
+            canonical
+            for pattern, canonical in patterns
+            if re.search(pattern, text, re.IGNORECASE)
+        ]
+        for dimension, patterns in BEHAVIOR_FACET_PATTERNS.items()
+    }
 
 
 def _behavior_excerpt(text: str) -> str | None:

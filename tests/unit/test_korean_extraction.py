@@ -121,3 +121,41 @@ def test_extractor_prefers_firsthand_behavior_over_early_title_match() -> None:
     assert exclusions == {}
     assert len(observations) == 1
     assert "저는 여행 이후" in observations[0].repeated_behavior
+
+
+def test_third_person_history_is_not_mislabeled_by_generic_haetseumnida() -> None:
+    query = SearchQuery(
+        query="매일 사진 기록 인증 공유 습관 후기",
+        theme="daily-photo",
+        lane="BEHAVIOR_REDESIGN",
+    )
+    history = _document(
+        "소시민들은 큰 행사 때만 사진을 찍었습니다. "
+        "카메라가 있어도 하늘이 예쁘다고 매일 사진을 찍지 못했습니다.",
+        suffix="third-person-history",
+    )
+    history.search_result.query = query.query
+
+    observations, exclusions = extract_observations([history], [query])
+
+    assert observations == []
+    assert exclusions["not_firsthand_behavior:unclassified"] == 1
+
+
+def test_app_privacy_boilerplate_is_not_firsthand_behavior() -> None:
+    query = SearchQuery(
+        query="매일 사진 기록 인증 공유 습관 후기",
+        theme="daily-photo",
+        lane="BEHAVIOR_REDESIGN",
+    )
+    boilerplate = _document(
+        "개발자가 사진 또는 비디오 데이터를 수집할 수 있다고 표시했습니다. "
+        "앱 기능을 위해 사용자 콘텐츠를 확인합니다.",
+        suffix="app-privacy-boilerplate",
+    )
+    boilerplate.search_result.query = query.query
+
+    observations, exclusions = extract_observations([boilerplate], [query])
+
+    assert observations == []
+    assert exclusions["not_firsthand_behavior:unclassified"] == 1

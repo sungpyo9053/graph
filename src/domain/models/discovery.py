@@ -104,6 +104,10 @@ class BehaviorObservation(BaseModel):
     frequency: str
     measurable_loss: str
     workaround: str
+    motivations: list[str] = Field(default_factory=list)
+    target_objects: list[str] = Field(default_factory=list)
+    expected_rewards: list[str] = Field(default_factory=list)
+    repeat_triggers: list[str] = Field(default_factory=list)
     evidence: Evidence
 
 

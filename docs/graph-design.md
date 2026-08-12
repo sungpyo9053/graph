@@ -16,7 +16,7 @@ flowchart TD
     C --> N[사실·인용문 추출<br/>normalize_evidence]
     N --> SNS[SNS Discovery Subgraph]
     SNS --> W[행동·우회 방법 추출<br/>detect_workarounds]
-    W --> D[행동 기준 문제 군집화<br/>deduplicate_root_problems]
+    W --> D[동기·대상·보상·반복 계기 기준 군집화<br/>deduplicate_root_problems]
     D --> G{review_problem_evidence}
     G -->|근거 미달| Q
     G -->|Problem/Redesign 2개<br/>Wild 1개| O[orchestrate_candidate_subgraphs]

@@ -18,6 +18,7 @@ from src.domain.models.discovery import (
 )
 from src.domain.models.schemas import Evidence, EvidenceGrade, EvidenceSourceRole
 from src.domain.policies.evidence import freshness_score
+from src.services.discovery.extraction import infer_behavior_facets
 
 SIGNAL_PATTERNS: tuple[tuple[SocialSignalType, re.Pattern[str]], ...] = (
     (SocialSignalType.RISING_BEHAVIOR, re.compile(r"갑자기|요즘 다들|유행|뜨고 있|많이 시작|챌린지", re.I)),
@@ -182,6 +183,7 @@ def _to_observation(
         frequency=frequency.group(0) if frequency else "unknown",
         measurable_loss="unknown",
         workaround=workaround or "not applicable: existing behavior is the creative substrate",
+        **infer_behavior_facets(signal.excerpt),
         evidence=evidence,
     )
 
