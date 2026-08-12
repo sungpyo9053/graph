@@ -12,6 +12,25 @@ import httpx
 from src.domain.models.discovery import PublicDocument, SearchQuery, SearchResult
 from src.search.provider import SearchProvider
 
+ACCESS_BARRIER_MARKERS = (
+    'name="js_challenge"',
+    "cf-chl-challenge",
+    "g-recaptcha",
+    "hcaptcha-response",
+    "verify you are human",
+    "enable javascript and cookies to continue",
+    "log in to continue",
+    "sign in to continue",
+)
+
+
+def access_barrier_reason(html: str) -> str | None:
+    lowered = html.lower()
+    for marker in ACCESS_BARRIER_MARKERS:
+        if marker in lowered:
+            return "access_barrier_or_bot_challenge"
+    return None
+
 
 class _TextExtractor(HTMLParser):
     def __init__(self) -> None:
@@ -98,6 +117,12 @@ class PublicPageFetcher:
                 return self._snippet_only(
                     result, "content_too_large", response.status_code, content_type
                 )
+            if "text/html" in content_type or "application/xhtml+xml" in content_type:
+                barrier = access_barrier_reason(response.text)
+                if barrier:
+                    return self._snippet_only(
+                        result, barrier, response.status_code, content_type
+                    )
             text = response.text if "text/plain" in content_type else html_to_text(response.text)
             if len(text) < 120:
                 return self._snippet_only(

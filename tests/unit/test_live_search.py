@@ -104,6 +104,39 @@ async def test_original_and_snippet_are_distinct_and_only_original_becomes_evide
     assert exclusions["snippet_only:robots_or_fetch_failure"] == 1
 
 
+@pytest.mark.asyncio
+async def test_http_200_bot_challenge_is_not_treated_as_verified_original() -> None:
+    result = SearchResult(
+        title="Reddit",
+        url="https://www.reddit.com/r/example/comments/abc/post/",
+        description="search snippet",
+        provider="verified-url-input",
+        query="social behavior",
+        rank=1,
+        result_type="social_post",
+    )
+    challenge = """
+    <html><head><title>Reddit</title></head><body>
+      <main>loading</main>
+      <form><input type="hidden" name="js_challenge" value="1" /></form>
+    </body></html>
+    """
+    async with httpx.AsyncClient(
+        transport=httpx.MockTransport(
+            lambda request: httpx.Response(
+                200, headers={"content-type": "text/html"}, text=challenge
+            )
+        )
+    ) as client:
+        fetcher = PublicPageFetcher(client=client)
+        fetcher._unsafe_url_reason = AsyncMock(return_value=None)  # type: ignore[method-assign]
+        document = await fetcher.fetch(result)
+
+    assert document.access_level == "SEARCH_SNIPPET_ONLY"
+    assert document.error_reason == "access_barrier_or_bot_challenge"
+    assert document.extracted_text is None
+
+
 def test_live_collector_rejects_fixture_provider() -> None:
     class Provider:
         name = "fixture"
